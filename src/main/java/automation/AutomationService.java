@@ -807,81 +807,73 @@ public class AutomationService {
                     }
 
                     System.out.println("🚀 Opening National Portal...");
+                    driver.get(url);
 
-                    int maxAttempts = 3;
-                    loginSuccess = false;
+                    // 🔐 Enter username & password
+                    wait5.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.id("loginform-username")
+                    )).sendKeys(username);
 
-                    String currentUrl5 = null;
-                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                    driver.findElement(By.id("loginform-password")).sendKeys(password);
 
-                        System.out.println("🔁 Login Attempt: " + attempt);
+                    // 🧠 Solve captcha using OCR
+                    String ocrText = solveCaptcha(driver);
 
-                        driver.get(url);
-
-                        // 🔐 Enter username & password
-                        wait5.until(ExpectedConditions.visibilityOfElementLocated(
-                                By.id("loginform-username")
-                        )).sendKeys(username);
-
-                        driver.findElement(By.id("loginform-password")).sendKeys(password);
-
-                        // 🧠 Solve captcha using OCR
-                        String ocrText = solveCaptcha(driver);
-
-                        if (ocrText == null || ocrText.isEmpty()) {
-                            System.out.println("⚠️ OCR failed, retrying...");
-                            continue;
-                        }
-
-                        int result;
-
-                        try {
-                            result = extractAndSolve(ocrText);
-                            System.out.println("🧮 Captcha solved: " + result);
-                        } catch (Exception e) {
-                            System.out.println("⚠️ Captcha parse failed, retrying...");
-                            continue;
-                        }
-
-                        // ✍️ Enter captcha
-                        driver.findElement(By.id("loginform-captcha")).clear();
-                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
-
-                        // 🔘 Click login
-                        driver.findElement(By.xpath("//button[@type='submit']")).click();
-
-                        // ⏳ Wait after login
-                        Thread.sleep(3000);
-
-                        // 🌐 Get current URL
-                        currentUrl5 = driver.getCurrentUrl();
-                        System.out.println("🌐 Current URL: " + currentUrl5);
-
-                        // ❗ Check captcha error message
-                        boolean captchaError = false;
-
-                        try {
-                            WebElement captchaErrorElement = driver.findElement(
-                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
-                            );
-                            if (captchaErrorElement.isDisplayed()) {
-                                captchaError = true;
-                            }
-                        } catch (NoSuchElementException ignored) {
-                        }
-
-                        // ❌ CASE 1: CAPTCHA WRONG
-                        if (currentUrl5.equals("https://partner.nationalbroadband.pk/") && !captchaError) {
-                            loginSuccess = true;
-                            break;
-                        }
-
-                        System.out.println("❌ Login failed, retrying...");
+                    if (ocrText == null || ocrText.isEmpty()) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Captcha OCR failed\"}";
                     }
 
-                    if (!loginSuccess) {
+                    int result;
+
+                    try {
+                        result = extractAndSolve(ocrText);
+                        System.out.println("🧮 Captcha solved: " + result);
+                    } catch (Exception e) {
                         driver.quit();
-                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                        return "{\"status\":\"error\",\"message\":\"Captcha parsing failed\"}";
+                    }
+
+                    // ✍️ Enter captcha
+                    driver.findElement(By.id("loginform-captcha"))
+                            .sendKeys(String.valueOf(result));
+
+                    // 🔘 Click login
+                    driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                    // ⏳ Wait after login
+                    Thread.sleep(3000);
+
+                    // 🌐 Get current URL
+                    String currentUrl5 = driver.getCurrentUrl();
+                    System.out.println("🌐 Current URL: " + currentUrl5);
+
+                    // ❗ Check captcha error message
+                    boolean captchaError = false;
+
+                    try {
+                        WebElement captchaErrorElement = driver.findElement(
+                                By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                        );
+                        if (captchaErrorElement.isDisplayed()) {
+                            captchaError = true;
+                        }
+                    } catch (NoSuchElementException e) {
+                        captchaError = false;
+                    }
+
+                    // ❌ CASE 1: CAPTCHA WRONG
+                    if (!currentUrl5.equals("https://partner.nationalbroadband.pk/") && captchaError) {
+                        driver.quit();
+                        System.out.println("❌ Captcha incorrect");
+                        return "{\"status\":\"error\",\"message\":\"The verification code is incorrect.\"}";
+                    }
+
+                    // ❌ CASE 2: WRONG CREDENTIALS
+                    if (!currentUrl5.equals("https://partner.nationalbroadband.pk/")) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
                     }
 
                     // ✅ LOGIN SUCCESS

@@ -807,69 +807,83 @@ public class AutomationService {
                     }
 
                     System.out.println("🚀 Opening National Portal...");
-                    driver.get(url);
 
-                    // 🔐 Enter username & password
-                    wait5.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.id("loginform-username")
-                    )).sendKeys(username);
+                    int maxAttempts = 3;
+                    loginSuccess = false;
 
-                    driver.findElement(By.id("loginform-password")).sendKeys(password);
+                    String currentUrl5 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 
-                    // 🧠 Solve captcha using OCR
-                    String ocrText = solveCaptcha(driver);
+                        System.out.println("🔁 Login Attempt: " + attempt);
 
-                    if (ocrText == null || ocrText.isEmpty()) {
-                        driver.quit();
-                        return "{\"status\":\"error\",\"message\":\"Captcha OCR failed\"}";
-                    }
+                        driver.get(url);
 
-                    int result;
+                        // 🔐 Enter username & password
+                        wait5.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
 
-                    try {
-                        result = extractAndSolve(ocrText);
-                        System.out.println("🧮 Captcha solved: " + result);
-                    } catch (Exception e) {
-                        driver.quit();
-                        return "{\"status\":\"error\",\"message\":\"Captcha parsing failed\"}";
-                    }
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
 
-                    // ✍️ Enter captcha
-                    driver.findElement(By.id("loginform-captcha"))
-                            .sendKeys(String.valueOf(result));
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
 
-                    // 🔘 Click login
-                    driver.findElement(By.xpath("//button[@type='submit']")).click();
-
-                    // ⏳ Wait after login
-                    Thread.sleep(3000);
-
-                    // 🌐 Get current URL
-                    String currentUrl5 = driver.getCurrentUrl();
-                    System.out.println("🌐 Current URL: " + currentUrl5);
-
-                    // ❗ Check captcha error message
-                    boolean captchaError = false;
-
-                    try {
-                        WebElement captchaErrorElement = driver.findElement(
-                                By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
-                        );
-                        if (captchaErrorElement.isDisplayed()) {
-                            captchaError = true;
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
                         }
-                    } catch (NoSuchElementException e) {
-                        captchaError = false;
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl5 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl5);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (!captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
                     }
 
-                    // ❌ CASE 1: CAPTCHA WRONG
-                    if (!currentUrl5.equals("https://partner.nationalbroadband.pk/") && captchaError) {
+                    if (!loginSuccess) {
                         driver.quit();
-                        System.out.println("❌ Captcha incorrect");
-                        return "{\"status\":\"error\",\"message\":\"The verification code is incorrect.\"}";
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
                     }
 
-                    // ❌ CASE 2: WRONG CREDENTIALS
                     if (!currentUrl5.equals("https://partner.nationalbroadband.pk/")) {
                         driver.quit();
                         System.out.println("❌ Wrong Login Credentials");

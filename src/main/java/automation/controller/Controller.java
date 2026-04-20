@@ -10,7 +10,7 @@ import java.util.Map;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/fiberish")
+@RequestMapping("/panel")
 public class Controller {
 
     @GetMapping("/login")

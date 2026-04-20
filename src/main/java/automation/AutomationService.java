@@ -19,14 +19,12 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.Scanner;
 import java.util.HashMap;
 import java.util.Map;
@@ -337,9 +335,16 @@ public class AutomationService {
                         if (sheet.getRow(i) == null) continue;
 
                         obj.put("int_id", getCellValue(sheet, i, 1));
+                        obj.put("name", "");
+                        obj.put("manager", "");
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("stats", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
                         obj.put("package", getCellValue(sheet, i, 2));
-                        obj.put("exp_dt", "");
                         obj.put("rech_dt", getCellValue(sheet, i, 3));
+                        obj.put("exp_dt", "");
 
                         jsonArray.put(obj);
                     }
@@ -470,9 +475,16 @@ public class AutomationService {
 
                         JSONObject obj = new JSONObject();
                         obj.put("int_id", getCellValue(sheet2, i, 1));
+                        obj.put("name", "");
+                        obj.put("manager", "");
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("stats", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
                         obj.put("package", getCellValue(sheet2, i, 2));
-                        obj.put("exp_dt", "");
                         obj.put("rech_dt", getCellValue(sheet2, i, 3));
+                        obj.put("exp_dt", "");
 
                         jsonArray2.put(obj);
                     }
@@ -607,12 +619,19 @@ public class AutomationService {
 
                         JSONObject obj = new JSONObject();
                         obj.put("int_id", getCellValue(sheet3, i, 1));
-                        obj.put("name", getCellValue(sheet3, i, 2));
-                        obj.put("last_name", getCellValue(sheet3, i, 3));
+                        String firstName = String.valueOf(getCellValue(sheet3, i, 2)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet3, i, 3)).trim();
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+//                        obj.put("name", fullName);
                         obj.put("manager", getCellValue(sheet3, i, 4));
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("stats", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
                         obj.put("package", getCellValue(sheet3, i, 7));
-                        obj.put("exp_dt", "");
                         obj.put("rech_dt", getCellValue(sheet3, i, 9));
+                        obj.put("exp_dt", "");
 
                         jsonArray3.put(obj);
                     }
@@ -742,14 +761,23 @@ public class AutomationService {
 
                         String userName = cols.get(1).getText().trim();
                         String by = cols.get(3).getText().trim();
-                        String dateTime = cols.get(4).getText().trim();
                         String pkg = cols.get(5).getText().trim();
+                        String dateTime = cols.get(4).getText().trim();
+
 
                         JSONObject obj = new JSONObject();
                         obj.put("int_id", userName);
                         obj.put("name", by);
-                        obj.put("rch_dt", dateTime);
+                        obj.put("manager", "");
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("stats", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
                         obj.put("package", pkg);
+                        obj.put("rech_dt", dateTime);
+                        obj.put("exp_dt", "");
+
 
                         jsonArray4.put(obj);
                     }
@@ -760,78 +788,103 @@ public class AutomationService {
                 case "national":
 
                     WebDriverWait wait5 = new WebDriverWait(driver, Duration.ofSeconds(20));
+                    String downloadDir5 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    File folder5 = new File(downloadDir5);
+                    File[] files5 = folder5.listFiles();
+
+                    if (files5 != null) {
+                        for (File f : files5) {
+                            if (f.getName().contains("Customer List")
+                                    && f.getName().contains("-north")
+                                    && f.getName().endsWith(".csv")) {
+
+                                f.delete();
+                                System.out.println("🧹 Deleted old file: " + f.getName());
+                            }
+                        }
+                    }
 
                     System.out.println("🚀 Opening National Portal...");
-                    driver.get(url);
 
-                    // 🔐 Enter username & password
-                    wait5.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.id("loginform-username")
-                    )).sendKeys(username);
+                    int maxAttempts = 3;
+                    loginSuccess = false;
 
-                    driver.findElement(By.id("loginform-password")).sendKeys(password);
+                    String currentUrl5 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 
-                    // 🧠 Solve captcha using OCR
-                    String ocrText = solveCaptcha(driver);
+                        System.out.println("🔁 Login Attempt: " + attempt);
 
-                    if (ocrText == null || ocrText.isEmpty()) {
-                        driver.quit();
-                        return "{\"status\":\"error\",\"message\":\"Captcha OCR failed\"}";
-                    }
+                        driver.get(url);
 
-                    int result;
+                        // 🔐 Enter username & password
+                        wait5.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
 
-                    try {
-                        result = extractAndSolve(ocrText);
-                        System.out.println("🧮 Captcha solved: " + result);
-                    } catch (Exception e) {
-                        driver.quit();
-                        return "{\"status\":\"error\",\"message\":\"Captcha parsing failed\"}";
-                    }
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
 
-// ✍️ Enter captcha
-                    driver.findElement(By.id("loginform-captcha"))
-                            .sendKeys(String.valueOf(result));
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
 
-                    // 🔘 Click login
-                    driver.findElement(By.xpath("//button[@type='submit']")).click();
-
-                    // ⏳ Wait after login
-                    Thread.sleep(2000);
-
-// 🌐 Get current URL
-                    String currentUrl5 = driver.getCurrentUrl();
-                    System.out.println("🌐 Current URL: " + currentUrl5);
-
-// ❗ Check captcha error message
-                    boolean captchaError = false;
-
-                    try {
-                        WebElement captchaErrorElement = driver.findElement(
-                                By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
-                        );
-                        if (captchaErrorElement.isDisplayed()) {
-                            captchaError = true;
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
                         }
-                    } catch (NoSuchElementException e) {
-                        captchaError = false;
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl5 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl5);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (currentUrl5.equals("https://partner.nationalbroadband.pk/") && !captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
                     }
 
-// ❌ CASE 1: CAPTCHA WRONG
-                    if (!currentUrl5.equals("https://partner.nationalbroadband.pk/") && captchaError) {
+                    if (!loginSuccess) {
                         driver.quit();
-                        System.out.println("❌ Captcha incorrect");
-                        return "{\"status\":\"error\",\"message\":\"The verification code is incorrect.\"}";
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
                     }
 
-// ❌ CASE 2: WRONG CREDENTIALS
-                    if (!currentUrl5.equals("https://partner.nationalbroadband.pk/")) {
-                        driver.quit();
-                        System.out.println("❌ Wrong Login Credentials");
-                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
-                    }
-
-// ✅ LOGIN SUCCESS
+                    // ✅ LOGIN SUCCESS
                     System.out.println("✅ National login successful!");
 
                     // ❌ Close popup if appears
@@ -844,24 +897,122 @@ public class AutomationService {
                     } catch (TimeoutException e) {
                         System.out.println("⚠️ No popup appeared");
                     }
-                    System.out.println("📄 Navigating to invoice page...");
-                    driver.get(url + "invoice/index");
+                    System.out.println("📄 Navigating to customers page...");
+                    driver.get(url + "/customer/customers");
 
-                    wait5.until(ExpectedConditions.urlContains("invoice"));
+                    wait5.until(webDriver ->
+                            ((JavascriptExecutor) webDriver)
+                                    .executeScript("return document.readyState")
+                                    .equals("complete")
+                    );
+
                     System.out.println("🔍 Clicking Search button...");
 
                     WebElement searchBtn5 = wait5.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.id("btnSubmit")
-                            )
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnSubmit"))
                     );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn5);
 
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn5);
+                    Thread.sleep(1000);
 
-                    System.out.println("✅ Search button clicked");
-                    return "{\"status\":\"success\",\"message\":\"National flow reached search\"}";
+                    try {
+                        searchBtn5.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn5);
+                    }
+
+                    System.out.println("🔍 Search clicked");
+
+                    Thread.sleep(4000);
+
+                    WebElement exportBtn5 = wait5.until(
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnExport"))
+                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", exportBtn5);
+
+                    Thread.sleep(1000);
+
+                    try {
+                        exportBtn5.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn5);
+                    }
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile5 = null;
+                    int waitTime5 = 0;
+
+                    while (waitTime5 < 30) {
+
+                        File folder = new File(downloadDir5);
+                        File[] files = folder.listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().contains("Customer List") && f.getName().endsWith(".csv")) {
+                                    latestFile5 = f;
+                                    System.out.println("✅ Found file: " + f.getName());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (latestFile5 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime5++;
+                    }
+
+                    if (latestFile5 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+                    // 📊 CONVERT EXCEL → JSON
+                    BufferedReader br = new BufferedReader(new FileReader(latestFile5));
+                    String line;
+
+                    JSONArray jsonArray5 = new JSONArray();
+                    boolean isHeader = true;
+
+                    while ((line = br.readLine()) != null) {
+
+                        if (isHeader) { // skip header
+                            isHeader = false;
+                            continue;
+                        }
+
+                        String[] data = line.split(",");
+
+                        JSONObject obj = new JSONObject();
+
+                        obj.put("int_id", data.length > 3 ? data[3] : "");
+                        obj.put("name", data.length > 5 ? data[5] : "");
+                        obj.put("manager", "");
+                        obj.put("cnic", data.length > 6 ? data[6] : "");
+                        obj.put("adrs", data.length > 7 ? data[7] : "");
+                        obj.put("stats", data.length > 8 ? data[8] : "");
+                        obj.put("mob", data.length > 12 ? data[12] : "");
+                        obj.put("reg", data.length > 15 ? data[15] : "");
+                        obj.put("package", data.length > 17 ? data[17] : "");
+                        obj.put("rech_dt", data.length > 9 ? data[9] : "");
+                        obj.put("exp_dt", data.length > 23 ? data[23] : "");
+
+                        jsonArray5.put(obj);
+                    }
+
+                    br.close();
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile5.exists()) {
+                        latestFile5.delete();
+                        System.out.println("🗑️ national customer list file deleted");
+                    }
+
+                    System.out.println("✅ Done");
+
+                    return jsonArray5.toString();
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             return "{\"status\":\"error\",\"message\":\"Something went wrong\"}";

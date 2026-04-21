@@ -1044,6 +1044,152 @@ public class AutomationService {
                     System.out.println("✅ Done");
 
                     return jsonArray5.toString();
+
+                case "wancom":
+
+                    WebDriverWait wait6 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir6 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    String[] targetFiles6 = {"sas4_export.xlsx"};
+
+                    // 🧹 Delete old files BEFORE
+                    for (String fileName : targetFiles6) {
+                        File f = new File(downloadDir6, fileName);
+                        if (f.exists()) {
+                            f.delete();
+                            System.out.println("🧹 Deleted old file: " + fileName);
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Wancom...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait6.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait6.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait6.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful, continuing...");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 📄 Navigate to report page
+                    driver.get(url + "#/report/activations");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait6.until(ExpectedConditions.urlContains("activations"));
+                    System.out.println("📄 Navigated to activations report");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 📥 Click Export Button
+                    exportBtn = wait6.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
+                            )
+                    );
+
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile6 = null;
+                    int waitTime6 = 0;
+
+                    while (waitTime6 < 20) {
+                        for (String fileName : targetFiles6) {
+                            File f = new File(downloadDir6, fileName);
+                            if (f.exists()) {
+                                latestFile6 = f;
+                                System.out.println("✅ Found file: " + fileName);
+                                break;
+                            }
+                        }
+                        if (latestFile6 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime6++;
+                    }
+
+                    if (latestFile6 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis6 = new FileInputStream(latestFile6);
+                    XSSFWorkbook workbook6 = new XSSFWorkbook(fis6);
+                    XSSFSheet sheet6 = workbook6.getSheetAt(0);
+
+                    JSONArray jsonArray6 = new JSONArray();
+
+                    for (int i = 1; i <= sheet6.getLastRowNum(); i++) {
+
+                        if (sheet6.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+                        obj.put("int_id", getCellValue(sheet6, i, 2));
+                        String firstName = String.valueOf(getCellValue(sheet6, i, 3)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet6, i, 4)).trim();
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+//                        obj.put("name", fullName);
+                        obj.put("manager", getCellValue(sheet6, i, 5));
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("status", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
+                        obj.put("package", getCellValue(sheet6, i, 8));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet6, i, 10));
+
+                        jsonArray6.put(obj);
+                    }
+
+                    workbook6.close();
+                    fis6.close();
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile6.exists()) {
+                        latestFile6.delete();
+                        System.out.println("🗑️ Wancom file deleted");
+                        System.out.println("The End");
+                    }
+
+                    return jsonArray6.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

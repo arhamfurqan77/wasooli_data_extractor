@@ -97,6 +97,12 @@ public class AutomationService {
         }
     }
 
+    private static String getCellValue(@NotNull XSSFSheet sheet, int rowIndex, int colIndex) {
+        if (sheet.getRow(rowIndex) == null) return "";
+        if (sheet.getRow(rowIndex).getCell(colIndex) == null) return "";
+        return sheet.getRow(rowIndex).getCell(colIndex).toString();
+    }
+
     public static String solveCaptcha(WebDriver driver) {
         try {
             WebElement captchaImg = driver.findElement(By.id("loginform-captcha-image"));
@@ -227,7 +233,7 @@ public class AutomationService {
 
                         // Step 4: Final validation
                         if (!currentUrl.contains("/subdealer/salereports")) {
-                            return "{\"status\":\"error\",\"message\":\"Unable to access both dealer and subdealer reports\"}";
+                            return "{\"status\":\"error\",\"message\":\"Unable to access both dealer and subdealer reports page\"}";
                         }
                     }
 
@@ -265,25 +271,45 @@ public class AutomationService {
                     to.sendKeys(toDate);
                     System.out.println("📅 Dates selected: " + fromDate + " → " + toDate);
 
-                    System.out.println("🔍 Clicking Search button...");
+                    try {
+                        System.out.println("🔍 Clicking Search button...");
 
-                    WebElement searchBtn = wait.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//button[@type='submit' and contains(@class,'btn-primary')]")
-                            )
-                    );
+                        WebElement searchBtn = wait.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//button[@type='submit' and contains(@class,'btn-primary')]")
+                                )
+                        );
 
-                    // Scroll + click (safe for all browsers)
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn);
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
+                        // Scroll + click (safe for all browsers)
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn);
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
 
-                    System.out.println("📥 Clicking excel button...");
-                    WebElement excelBtn = wait.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//i[contains(@class,'ft-file-plus')]/parent::span")
-                            )
-                    );
-                    excelBtn.click();
+                    } catch (TimeoutException | NoSuchElementException e) {
+
+                        System.out.println("❌ Search button not found or not clickable");
+
+                        driver.quit();
+
+                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
+                    }
+
+                    try {
+                        System.out.println("📥 Clicking excel button...");
+                        WebElement excelBtn = wait.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//i[contains(@class,'ft-file-plus')]/parent::span")
+                                )
+                        );
+                        excelBtn.click();
+
+                    } catch (TimeoutException | NoSuchElementException e) {
+
+                        System.out.println("❌ Excel button not found or not clickable");
+
+                        driver.quit();
+
+                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
+                    }
 
                     // Wait for file download
                     File dir = new File(downloadDir);
@@ -339,7 +365,7 @@ public class AutomationService {
                         obj.put("manager", "");
                         obj.put("cnic", "");
                         obj.put("adrs", "");
-                        obj.put("stats", "");
+                        obj.put("status", "");
                         obj.put("mob", "");
                         obj.put("reg", "");
                         obj.put("package", getCellValue(sheet, i, 2));
@@ -479,7 +505,7 @@ public class AutomationService {
                         obj.put("manager", "");
                         obj.put("cnic", "");
                         obj.put("adrs", "");
-                        obj.put("stats", "");
+                        obj.put("status", "");
                         obj.put("mob", "");
                         obj.put("reg", "");
                         obj.put("package", getCellValue(sheet2, i, 2));
@@ -626,7 +652,7 @@ public class AutomationService {
                         obj.put("manager", getCellValue(sheet3, i, 4));
                         obj.put("cnic", "");
                         obj.put("adrs", "");
-                        obj.put("stats", "");
+                        obj.put("status", "");
                         obj.put("mob", "");
                         obj.put("reg", "");
                         obj.put("package", getCellValue(sheet3, i, 7));
@@ -771,7 +797,7 @@ public class AutomationService {
                         obj.put("manager", "");
                         obj.put("cnic", "");
                         obj.put("adrs", "");
-                        obj.put("stats", "");
+                        obj.put("status", "");
                         obj.put("mob", "");
                         obj.put("reg", "");
                         obj.put("package", pkg);
@@ -997,7 +1023,7 @@ public class AutomationService {
                         obj.put("manager", "");
                         obj.put("cnic", data.length > 6 ? data[6] : "");
                         obj.put("adrs", data.length > 7 ? data[7] : "");
-                        obj.put("stats", data.length > 8 ? data[8] : "");
+                        obj.put("status", data.length > 8 ? data[8] : "");
                         obj.put("mob", data.length > 12 ? data[12] : "");
                         obj.put("reg", data.length > 15 ? data[15] : "");
                         obj.put("package", data.length > 17 ? data[17] : "");
@@ -1024,11 +1050,5 @@ public class AutomationService {
             return "{\"status\":\"error\",\"message\":\"Something went wrong\"}";
         }
         return "{\"status\":\"error\",\"message\":\"Something went wrong\"}";
-    }
-
-    private static String getCellValue(@NotNull XSSFSheet sheet, int rowIndex, int colIndex) {
-        if (sheet.getRow(rowIndex) == null) return "";
-        if (sheet.getRow(rowIndex).getCell(colIndex) == null) return "";
-        return sheet.getRow(rowIndex).getCell(colIndex).toString();
     }
 }

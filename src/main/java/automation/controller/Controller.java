@@ -13,13 +13,24 @@ import java.util.Map;
 @RequestMapping("/panel")
 public class Controller {
 
-    @GetMapping("/login")
-    public String login(@RequestBody Map<String, String> request) {
+    @PostMapping("/login")
+    public String login(@RequestBody(required = false) Map<String, String> request,
+                        @RequestParam(value = "username", required = false) String username,
+                        @RequestParam(value = "password", required = false) String password,
+                        @RequestParam(value = "url", required = false) String url,
+                        @RequestParam(value = "type", required = false) String type
+    ) {
 
-        String username = request.get("username");
-        String password = request.get("password");
-        String url = request.get("url");
-        String type = request.get("type");
+        if (request != null) {
+            username = request.getOrDefault("username", username);
+            password = request.getOrDefault("password", password);
+            url = request.getOrDefault("url", url);
+            type = request.getOrDefault("type", type);
+        }
+
+        if (username == null || password == null || url == null || type == null) {
+            return "{\"status\":\"error\",\"message\":\"Missing required parameters\"}";
+        }
 
         WebDriver driver = new FirefoxDriver();
 
@@ -35,12 +46,23 @@ public class Controller {
     }
 
     @PostMapping("/get-report")
-    public String getReport(@RequestBody Map<String, String> request) {
+    public String getReport(@RequestBody(required = false) Map<String, String> request,
+                            @RequestParam(value = "username", required = false) String username,
+                            @RequestParam(value = "password", required = false) String password,
+                            @RequestParam(value = "url", required = false) String url,
+                            @RequestParam(value = "type", required = false) String type
+    ) {
 
-        String username = request.get("username");
-        String password = request.get("password");
-        String url = request.get("url");
-        String type = request.get("type");
+        if (request != null) {
+            username = request.getOrDefault("username", username);
+            password = request.getOrDefault("password", password);
+            url = request.getOrDefault("url", url);
+            type = request.getOrDefault("type", type);
+        }
+
+        if (username == null || password == null || url == null || type == null) {
+            return "{\"status\":\"error\",\"message\":\"Missing required parameters\"}";
+        }
 
         WebDriver driver = new FirefoxDriver();
 

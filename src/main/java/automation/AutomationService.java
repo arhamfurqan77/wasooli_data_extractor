@@ -1,5 +1,6 @@
 package automation;
 
+import com.opencsv.CSVReader;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import org.jetbrains.annotations.NotNull;
@@ -162,14 +163,30 @@ public class AutomationService {
 
         String[] parts = text.split("\\+");
 
-        if (parts.length != 2) {
-            throw new RuntimeException("Invalid captcha format after cleaning: " + text);
+        // ✅ CASE 1: Proper format (1+2)
+        if (parts.length == 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+            int num1 = Integer.parseInt(parts[0]);
+            int num2 = Integer.parseInt(parts[1]);
+            return num1 + num2;
         }
 
-        int num1 = Integer.parseInt(parts[0]);
-        int num2 = Integer.parseInt(parts[1]);
+        // ✅ CASE 2: Partial format like "+1" or "1+"
+        if (parts.length == 2) {
+            if (!parts[0].isEmpty()) {
+                return Integer.parseInt(parts[0]); // "1+"
+            }
+            if (!parts[1].isEmpty()) {
+                return Integer.parseInt(parts[1]); // "+1"
+            }
+        }
 
-        return num1 + num2;
+        // ✅ CASE 3: Only one number without +
+        if (parts.length == 1 && !parts[0].isEmpty()) {
+            return Integer.parseInt(parts[0]);
+        }
+
+        // ❌ Still invalid
+        throw new RuntimeException("Invalid captcha format after cleaning: " + text);
     }
 
     // 🧩 Core automation logic shared between Firefox & Chrome
@@ -458,7 +475,7 @@ public class AutomationService {
                     System.out.println("✅ Login successful, fetching API data...");
 
                     // 🔥 STEP 2: HIT API DIRECTLY
-                    String apiUrl = url + "/Ajax_Request/get_users_json?draw=3&columns[0][data]=user_full_name&columns[1][data]=address&columns[2][data]=package_name&columns[3][data]=seller_name&columns[5][data]=user_expiry_view&start=0&length=50&status=0";
+                    String apiUrl = url + "/Ajax_Request/get_users_json?draw=3&columns[0][data]=user_full_name&columns[1][data]=address&columns[2][data]=package_name&columns[3][data]=seller_name&columns[5][data]=user_expiry_view&start=0&length=500&status=0";
 
                     JavascriptExecutor js = (JavascriptExecutor) driver;
 
@@ -1165,20 +1182,18 @@ public class AutomationService {
                         return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
                     }
                     // 📊 CONVERT EXCEL → JSON
-                    BufferedReader br = new BufferedReader(new FileReader(latestFile5));
-                    String line;
+                    CSVReader reader = new CSVReader(new FileReader(latestFile5));
+                    String[] data5;
 
                     JSONArray jsonArray5 = new JSONArray();
                     boolean isHeader = true;
 
-                    while ((line = br.readLine()) != null) {
+                    while ((data5 = reader.readNext()) != null) {
 
-                        if (isHeader) { // skip header
+                        if (isHeader) {
                             isHeader = false;
                             continue;
                         }
-
-                        String[] data5 = line.split(",");
 
                         JSONObject obj = new JSONObject();
 
@@ -1197,7 +1212,7 @@ public class AutomationService {
                         jsonArray5.put(obj);
                     }
 
-                    br.close();
+                    reader.close();
 
                     // 🗑️ DELETE FILE
                     if (latestFile5.exists()) {

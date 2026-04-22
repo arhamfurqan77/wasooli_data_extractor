@@ -782,7 +782,7 @@ public class AutomationService {
                     // 📥 Click Export Button
                     WebElement exportBtn = wait3.until(
                             ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//a[@ptooltip='export table data']")
+                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
                             )
                     );
 
@@ -1310,10 +1310,41 @@ public class AutomationService {
                     while (waitTime6 < 20) {
                         for (String fileName : targetFiles6) {
                             File f = new File(downloadDir6, fileName);
-                            if (f.exists()) {
-                                latestFile6 = f;
-                                System.out.println("✅ Found file: " + fileName);
-                                break;
+                            latestFile6 = null;
+                            waitTime6 = 0;
+
+                            while (waitTime6 < 30) {
+
+                                for (String targetName : targetFiles6) {
+
+                                    f = new File(downloadDir6, targetName);
+
+                                    // ❌ Ignore temp downloading files
+                                    if (f.getName().endsWith(".part") || f.getName().endsWith(".crdownload")) {
+                                        continue;
+                                    }
+
+                                    if (f.exists() && f.length() > 0) {
+
+                                        // 🧠 Check if file writing is finished
+                                        long size1 = f.length();
+                                        Thread.sleep(1000);
+                                        long size2 = f.length();
+
+                                        if (size1 == size2) {
+                                            latestFile6 = f;
+                                            System.out.println("✅ File fully downloaded: " + targetName);
+                                            break;
+                                        } else {
+                                            System.out.println("⏳ File still downloading...");
+                                        }
+                                    }
+                                }
+
+                                if (latestFile6 != null) break;
+
+                                Thread.sleep(1000);
+                                waitTime6++;
                             }
                         }
                         if (latestFile6 != null) break;

@@ -95,7 +95,10 @@ public class LoginService {
 
             // OCR
             ITesseract image = new Tesseract();
-            image.setDatapath("E:\\Tesseract-OCR\\tessdata");
+            image.setDatapath(System.getProperty("user.dir") + "\\Tesseract-OCR\\tessdata");
+
+            image.setTessVariable("tessedit_char_whitelist", "lo0123456789+");
+            image.setPageSegMode(7); // Treat image as single line
 
             String result = image.doOCR(dest);
 
@@ -110,11 +113,36 @@ public class LoginService {
     }
 
     public static int extractAndSolve(String text) {
-        text = text.replaceAll("[^0-9+]", ""); // keep only digits & +
+
+        if (text == null) throw new RuntimeException("OCR returned null");
+
+        System.out.println("🔍 Before cleaning: " + text);
+
+        // 🔧 Normalize common OCR mistakes
+        text = text.toLowerCase();
+
+        text = text.replaceAll("[o]", "0");     // o → 0
+        text = text.replaceAll("[l|i]", "1");   // l, i → 1
+        text = text.replaceAll("t", "1");       // t → 1 (optional)
+        text = text.replaceAll("r", "");        // remove noise
+
+        // ✅ Keep only digits and +
+        text = text.replaceAll("[^0-9+]", "");
+
+        // 🔥 FIX 1: collapse multiple + into one
+        text = text.replaceAll("\\++", "+");
+
+        // 🔥 FIX 2: collapse repeated digits (00 → 0, 11 → 1)
+        text = text.replaceAll("0+", "0");
+        text = text.replaceAll("1+", "1");
+
+        System.out.println("🧹 Cleaned OCR: " + text);
 
         String[] parts = text.split("\\+");
 
-        if (parts.length != 2) throw new RuntimeException("Invalid captcha format");
+        if (parts.length != 2) {
+            throw new RuntimeException("Invalid captcha format after cleaning: " + text);
+        }
 
         int num1 = Integer.parseInt(parts[0]);
         int num2 = Integer.parseInt(parts[1]);
@@ -410,6 +438,49 @@ public class LoginService {
 
                     try {
                         wait6.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "mak_net":
+
+                    WebDriverWait wait7 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening MakNet...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait7.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait7.until(ExpectedConditions.urlContains("/dashboard"));
                         loginSuccess = true;
                     } catch (TimeoutException e) {
                         loginSuccess = false;

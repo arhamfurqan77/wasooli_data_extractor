@@ -25,6 +25,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Scanner;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,7 +115,10 @@ public class AutomationService {
 
             // OCR
             ITesseract image = new Tesseract();
-            image.setDatapath("E:\\Tesseract-OCR\\tessdata");
+            image.setDatapath(System.getProperty("user.dir") + "\\Tesseract-OCR\\tessdata");
+
+            image.setTessVariable("tessedit_char_whitelist", "lo0123456789+");
+            image.setPageSegMode(7); // Treat image as single line
 
             String result = image.doOCR(dest);
 
@@ -129,11 +133,36 @@ public class AutomationService {
     }
 
     public static int extractAndSolve(String text) {
-        text = text.replaceAll("[^0-9+]", ""); // keep only digits & +
+
+        if (text == null) throw new RuntimeException("OCR returned null");
+
+        System.out.println("🔍 Before cleaning: " + text);
+
+        // 🔧 Normalize common OCR mistakes
+        text = text.toLowerCase();
+
+        text = text.replaceAll("[o]", "0");     // o → 0
+        text = text.replaceAll("[l|i]", "1");   // l, i → 1
+        text = text.replaceAll("t", "1");       // t → 1 (optional)
+        text = text.replaceAll("r", "");        // remove noise
+
+        // ✅ Keep only digits and +
+        text = text.replaceAll("[^0-9+]", "");
+
+        // 🔥 FIX 1: collapse multiple + into one
+        text = text.replaceAll("\\++", "+");
+
+        // 🔥 FIX 2: collapse repeated digits (00 → 0, 11 → 1)
+        text = text.replaceAll("0+", "0");
+        text = text.replaceAll("1+", "1");
+
+        System.out.println("🧹 Cleaned OCR: " + text);
 
         String[] parts = text.split("\\+");
 
-        if (parts.length != 2) throw new RuntimeException("Invalid captcha format");
+        if (parts.length != 2) {
+            throw new RuntimeException("Invalid captcha format after cleaning: " + text);
+        }
 
         int num1 = Integer.parseInt(parts[0]);
         int num2 = Integer.parseInt(parts[1]);
@@ -584,9 +613,26 @@ public class AutomationService {
 
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    wait.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//span[contains(@class,'pi-times')]/parent::button")
-                    )).click();
+                    try {
+                        List<WebElement> closeBtns = driver.findElements(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        );
+
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+
+                            System.out.println("✅ Close popup found, clicking...");
+
+                            WebElement closeBtn = closeBtns.get(0);
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error while closing popup, skipping...");
+                    }
 
                     // 📄 Navigate to report page
                     driver.get(url + "#/report/activations");
@@ -1190,6 +1236,173 @@ public class AutomationService {
                     }
 
                     return jsonArray6.toString();
+
+                case "mak_net":
+
+                    WebDriverWait wait7 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir7 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    String[] targetFiles7 = {"sas4_export.xlsx"};
+
+                    // 🧹 Delete old files BEFORE
+                    for (String fileName : targetFiles7) {
+                        File f = new File(downloadDir7, fileName);
+                        if (f.exists()) {
+                            f.delete();
+                            System.out.println("🧹 Deleted old file: " + fileName);
+                        }
+                    }
+
+                    System.out.println("🚀 Opening MakNet...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait7.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait7.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful, continuing...");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    try {
+                        List<WebElement> closeBtns = driver.findElements(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        );
+
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+
+                            System.out.println("✅ Close popup found, clicking...");
+
+                            WebElement closeBtn = closeBtns.get(0);
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error while closing popup, skipping...");
+                    }
+
+                    // 📄 Navigate to report page
+                    driver.get(url + "#/report/activations");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait7.until(ExpectedConditions.urlContains("activations"));
+                    System.out.println("📄 Navigated to activations report");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 📥 Click Export Button
+                    exportBtn = wait7.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
+                            )
+                    );
+
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile7 = null;
+                    int waitTime7 = 0;
+
+                    while (waitTime7 < 20) {
+                        for (String fileName : targetFiles7) {
+                            File f = new File(downloadDir7, fileName);
+                            if (f.exists()) {
+                                latestFile7 = f;
+                                System.out.println("✅ Found file: " + fileName);
+                                break;
+                            }
+                        }
+                        if (latestFile7 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime7++;
+                    }
+
+                    if (latestFile7 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis7 = new FileInputStream(latestFile7);
+                    XSSFWorkbook workbook7 = new XSSFWorkbook(fis7);
+                    XSSFSheet sheet7 = workbook7.getSheetAt(0);
+
+                    JSONArray jsonArray7 = new JSONArray();
+
+                    for (int i = 1; i <= sheet7.getLastRowNum(); i++) {
+
+                        if (sheet7.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+                        obj.put("int_id", getCellValue(sheet7, i, 2));
+                        String firstName = String.valueOf(getCellValue(sheet7, i, 3)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet7, i, 4)).trim();
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+//                        obj.put("name", fullName);
+                        obj.put("manager", getCellValue(sheet7, i, 5));
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("status", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
+                        obj.put("package", getCellValue(sheet7, i, 8));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet7, i, 10));
+
+                        jsonArray7.put(obj);
+                    }
+
+                    workbook7.close();
+                    fis7.close();
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile7.exists()) {
+                        latestFile7.delete();
+                        System.out.println("🗑️ Maknet file deleted");
+                        System.out.println("The End");
+                    }
+
+                    return jsonArray7.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

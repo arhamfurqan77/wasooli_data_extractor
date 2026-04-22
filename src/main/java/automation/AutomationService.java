@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AutomationService {
 
@@ -176,33 +178,252 @@ public class AutomationService {
         File excelFile;
         try {
             switch (type) {
+//                case "partner_fiberish":
+////                    url = "https://partner.fiberish.net.pk/";
+////                    username = "saadnet", "friends";
+////                    password = "asdfasdf", "123456";
+//
+//                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+//
+//                    // ✅ Dynamic dates
+//                    LocalDate now = LocalDate.now();
+//                    String fromDate = now.withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+//                    String toDate = now.withDayOfMonth(now.lengthOfMonth()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+//
+//                    String downloadDir = System.getProperty("user.home") + "\\Downloads";
+//
+//                    // 🧹 Clear old Excel files before download
+//
+//                    String[] targetFiles = {
+//                            "Fiberish Broadband Billing Systems.xlsx",
+//                            "Fiberish Broadband  Billing Systems.xlsx"
+//                    };
+//                    for (String fileName : targetFiles) {
+//                        File f = new File(downloadDir, fileName);
+//                        if (f.exists()) {
+//                            f.delete();
+//                            System.out.println("🧹 Deleted old Excel file(s): " + fileName);
+//                        }
+//                    }
+//
+//                    System.out.println("🚀 Opening Partner Fiberish...");
+//                    driver.get(url);
+////                    driver.get("https://cp.fiberish.net.pk/");
+//                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"username\"]"))).sendKeys(username);
+//                    driver.findElement(By.xpath("//*[@id=\"password\"]")).sendKeys(password);
+//                    WebElement loginBtn = wait.until(
+//                            ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(.,'Sign In')]"))
+//                    );
+//                    loginBtn.click();
+//                    // ⏳ Wait after login click
+//                    Thread.sleep(2000);
+//
+//                    // ⏳ Wait for redirect after login
+//                    boolean loginSuccess = false;
+//
+//                    try {
+//                        wait.until(ExpectedConditions.urlContains("/home.html"));
+//                        loginSuccess = true;
+//                    } catch (TimeoutException e) {
+//                        loginSuccess = false;
+//                    }
+//
+//                    // ❌ If login failed → stop execution
+//                    if (!loginSuccess) {
+//                        driver.quit();
+//                        System.out.println("❌ Wrong Login Credentials");
+//                        System.out.println("The End");
+//                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+//                    }
+//
+//                    System.out.println("✅ Login successful, continuing...");
+//
+//                    // Step 1: Try dealer page
+//                    System.out.println("📄 Trying dealer sale reports page...");
+//
+//                    // Step 1: Try dealer
+//                    driver.get(url + "/dealer/salereports");
+//
+//                    wait.until(ExpectedConditions.urlContains("/salereports"));
+//                    Thread.sleep(2000);
+//                    String currentUrl = driver.getCurrentUrl();
+//                    System.out.println("🌐 Current URL: " + currentUrl);
+//
+//                    // Step 2: Check if we are actually on dealer page
+//                    if (!currentUrl.contains("/dealer/salereports")) {
+//
+//                        System.out.println("⚠️ Not on dealer page. Trying subdealer...");
+//
+//                        // Step 3: Fallback to subdealer
+//                        driver.get(url + "/subdealer/salereports");
+//
+//                        wait.until(ExpectedConditions.urlContains("/salereports"));
+//
+//                        currentUrl = driver.getCurrentUrl();
+//                        System.out.println("🌐 Current URL after fallback: " + currentUrl);
+//
+//                        // Step 4: Final validation
+//                        if (!currentUrl.contains("/subdealer/salereports")) {
+//                            return "{\"status\":\"error\",\"message\":\"Unable to access both dealer and subdealer reports page\"}";
+//                        }
+//                    }
+//
+//                    // ✅ Continue execution from here
+//                    System.out.println("✅ Correct report page loaded: " + currentUrl);
+//
+//                    wait.until(ExpectedConditions.jsReturnsValue(
+//                            "return document.readyState === 'complete';"
+//                    ));
+//
+//                    java.util.List<WebElement> sellerList = driver.findElements(By.name("seller"));
+//
+//                    if (!sellerList.isEmpty()) {
+//                        WebElement hiddenSelect = sellerList.get(0);
+//
+//                        ((JavascriptExecutor) driver).executeScript(
+//                                "arguments[0].value='630'; arguments[0].dispatchEvent(new Event('change'));",
+//                                hiddenSelect
+//                        );
+//
+//                        System.out.println("✅ Seller dropdown found and selected.");
+//                    } else {
+//                        System.out.println("⚠️ Seller dropdown not found. Skipping...");
+//                    }
+//
+//
+//                    WebElement from = wait.until(
+//                            ExpectedConditions.elementToBeClickable(By.name("from"))
+//                    );
+//                    from.clear();
+//                    from.sendKeys(fromDate);
+//
+//                    WebElement to = driver.findElement(By.name("to"));
+//                    to.clear();
+//                    to.sendKeys(toDate);
+//                    System.out.println("📅 Dates selected: " + fromDate + " → " + toDate);
+//
+//                    try {
+//                        System.out.println("🔍 Clicking Search button...");
+//
+//                        WebElement searchBtn = wait.until(
+//                                ExpectedConditions.elementToBeClickable(
+//                                        By.xpath("//button[@type='submit' and contains(@class,'btn-primary')]")
+//                                )
+//                        );
+//
+//                        // Scroll + click (safe for all browsers)
+//                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn);
+//                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
+//
+//                    } catch (TimeoutException | NoSuchElementException e) {
+//
+//                        System.out.println("❌ Search button not found or not clickable");
+//
+//                        driver.quit();
+//
+//                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
+//                    }
+//
+//                    try {
+//                        System.out.println("📥 Clicking excel button...");
+//                        WebElement excelBtn = wait.until(
+//                                ExpectedConditions.elementToBeClickable(
+//                                        By.xpath("//i[contains(@class,'ft-file-plus')]/parent::span")
+//                                )
+//                        );
+//                        excelBtn.click();
+//
+//                    } catch (TimeoutException | NoSuchElementException e) {
+//
+//                        System.out.println("❌ Excel button not found or not clickable");
+//
+//                        driver.quit();
+//
+//                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
+//                    }
+//
+//                    // Wait for file download
+//                    File dir = new File(downloadDir);
+//
+//                    targetFiles = new String[]{
+//                            "Fiberish Broadband Billing Systems.xlsx",
+//                            "Fiberish Broadband  Billing Systems.xlsx"
+//                    };
+//
+//                    File latestFile = null;
+//
+//                    int waitTime = 0;
+//                    while (waitTime < 20) { // wait max 20 sec
+//                        for (String fileName : targetFiles) {
+//                            File f = new File(dir, fileName);
+//                            if (f.exists()) {
+//                                latestFile = f;
+//                                System.out.println("✅ Found file: " + fileName);
+//                                break;
+//                            }
+//                        }
+//
+//                        if (latestFile != null) break;
+//                        Thread.sleep(1000);
+//                        waitTime++;
+//                    }
+//
+//                    if (latestFile == null) {
+//                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+//                    }
+//                    System.out.println("📊 Download completed. Now editing Excel file...");
+//
+//                    excelFile = latestFile;
+//
+//                    if (excelFile == null) {
+//                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+//                    }
+//
+//
+//                    FileInputStream fis = new FileInputStream(excelFile);
+//                    XSSFWorkbook workbook = new XSSFWorkbook(fis);
+//                    XSSFSheet sheet = workbook.getSheetAt(0);
+//
+//                    JSONArray jsonArray = new JSONArray();
+//
+//                    for (int i = 2; i <= sheet.getLastRowNum(); i++) {
+//                        JSONObject obj = new JSONObject();
+//
+//                        if (sheet.getRow(i) == null) continue;
+//
+//                        obj.put("int_id", getCellValue(sheet, i, 1));
+//                        obj.put("name", "");
+//                        obj.put("manager", "");
+//                        obj.put("cnic", "");
+//                        obj.put("adrs", "");
+//                        obj.put("status", "");
+//                        obj.put("mob", "");
+//                        obj.put("reg", "");
+//                        obj.put("package", getCellValue(sheet, i, 2));
+//                        obj.put("rech_dt", getCellValue(sheet, i, 3));
+//                        obj.put("exp_dt", "");
+//
+//                        jsonArray.put(obj);
+//                    }
+//
+//                    workbook.close();
+//                    fis.close();
+//
+//                    // 🗑️ delete after processing
+//                    if (excelFile.exists()) {
+//                        boolean deleted = excelFile.delete();
+//                        if (deleted) {
+//                            System.out.println("🗑️ File deleted after processing");
+//                        } else {
+//                            System.out.println("⚠️ Failed to delete file");
+//                        }
+//                    }
+//
+//                    return jsonArray.toString();
+
                 case "partner_fiberish":
-//                    url = "https://partner.fiberish.net.pk/";
-//                    username = "saadnet", "friends";
-//                    password = "asdfasdf", "123456";
 
                     WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-
-                    // ✅ Dynamic dates
-                    LocalDate now = LocalDate.now();
-                    String fromDate = now.withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                    String toDate = now.withDayOfMonth(now.lengthOfMonth()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-                    String downloadDir = System.getProperty("user.home") + "\\Downloads";
-
-                    // 🧹 Clear old Excel files before download
-
-                    String[] targetFiles = {
-                            "Fiberish Broadband Billing Systems.xlsx",
-                            "Fiberish Broadband  Billing Systems.xlsx"
-                    };
-                    for (String fileName : targetFiles) {
-                        File f = new File(downloadDir, fileName);
-                        if (f.exists()) {
-                            f.delete();
-                            System.out.println("🧹 Deleted old Excel file(s): " + fileName);
-                        }
-                    }
 
                     System.out.println("🚀 Opening Partner Fiberish...");
                     driver.get(url);
@@ -234,190 +455,87 @@ public class AutomationService {
                         return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
                     }
 
-                    System.out.println("✅ Login successful, continuing...");
+                    System.out.println("✅ Login successful, fetching API data...");
 
-                    // Step 1: Try dealer page
-                    System.out.println("📄 Trying dealer sale reports page...");
+                    // 🔥 STEP 2: HIT API DIRECTLY
+                    String apiUrl = url + "/Ajax_Request/get_users_json?draw=3&columns[0][data]=user_full_name&columns[1][data]=address&columns[2][data]=package_name&columns[3][data]=seller_name&columns[5][data]=user_expiry_view&start=0&length=50&status=0";
 
-                    // Step 1: Try dealer
-                    driver.get(url + "/dealer/salereports");
+                    JavascriptExecutor js = (JavascriptExecutor) driver;
 
-                    wait.until(ExpectedConditions.urlContains("/salereports"));
-                    Thread.sleep(2000);
-                    String currentUrl = driver.getCurrentUrl();
-                    System.out.println("🌐 Current URL: " + currentUrl);
-
-                    // Step 2: Check if we are actually on dealer page
-                    if (!currentUrl.contains("/dealer/salereports")) {
-
-                        System.out.println("⚠️ Not on dealer page. Trying subdealer...");
-
-                        // Step 3: Fallback to subdealer
-                        driver.get(url + "/subdealer/salereports");
-
-                        wait.until(ExpectedConditions.urlContains("/salereports"));
-
-                        currentUrl = driver.getCurrentUrl();
-                        System.out.println("🌐 Current URL after fallback: " + currentUrl);
-
-                        // Step 4: Final validation
-                        if (!currentUrl.contains("/subdealer/salereports")) {
-                            return "{\"status\":\"error\",\"message\":\"Unable to access both dealer and subdealer reports page\"}";
-                        }
-                    }
-
-                    // ✅ Continue execution from here
-                    System.out.println("✅ Correct report page loaded: " + currentUrl);
-
-                    wait.until(ExpectedConditions.jsReturnsValue(
-                            "return document.readyState === 'complete';"
-                    ));
-
-                    java.util.List<WebElement> sellerList = driver.findElements(By.name("seller"));
-
-                    if (!sellerList.isEmpty()) {
-                        WebElement hiddenSelect = sellerList.get(0);
-
-                        ((JavascriptExecutor) driver).executeScript(
-                                "arguments[0].value='630'; arguments[0].dispatchEvent(new Event('change'));",
-                                hiddenSelect
-                        );
-
-                        System.out.println("✅ Seller dropdown found and selected.");
-                    } else {
-                        System.out.println("⚠️ Seller dropdown not found. Skipping...");
-                    }
-
-
-                    WebElement from = wait.until(
-                            ExpectedConditions.elementToBeClickable(By.name("from"))
+                    String rawJson = (String) js.executeScript(
+                            "return fetch(arguments[0], {credentials: 'include'})" +
+                                    ".then(res => res.text())" +
+                                    ".then(data => data);",
+                            apiUrl
                     );
-                    from.clear();
-                    from.sendKeys(fromDate);
 
-                    WebElement to = driver.findElement(By.name("to"));
-                    to.clear();
-                    to.sendKeys(toDate);
-                    System.out.println("📅 Dates selected: " + fromDate + " → " + toDate);
+                    System.out.println("📦 Raw JSON received:\n" + rawJson);
 
-                    try {
-                        System.out.println("🔍 Clicking Search button...");
+                    System.out.println("📦 Raw JSON received");
 
-                        WebElement searchBtn = wait.until(
-                                ExpectedConditions.elementToBeClickable(
-                                        By.xpath("//button[@type='submit' and contains(@class,'btn-primary')]")
-                                )
-                        );
+                    // 🧠 PARSE JSON
+                    JSONObject response = new JSONObject(rawJson);
+                    JSONArray data = response.getJSONArray("data");
 
-                        // Scroll + click (safe for all browsers)
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn);
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
+                    JSONArray finalArray = new JSONArray();
 
-                    } catch (TimeoutException | NoSuchElementException e) {
+                    for (int i = 0; i < data.length(); i++) {
 
-                        System.out.println("❌ Search button not found or not clickable");
-
-                        driver.quit();
-
-                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
-                    }
-
-                    try {
-                        System.out.println("📥 Clicking excel button...");
-                        WebElement excelBtn = wait.until(
-                                ExpectedConditions.elementToBeClickable(
-                                        By.xpath("//i[contains(@class,'ft-file-plus')]/parent::span")
-                                )
-                        );
-                        excelBtn.click();
-
-                    } catch (TimeoutException | NoSuchElementException e) {
-
-                        System.out.println("❌ Excel button not found or not clickable");
-
-                        driver.quit();
-
-                        return "{\"status\":\"error\",\"message\":\"Search button not found or not clickable\"}";
-                    }
-
-                    // Wait for file download
-                    File dir = new File(downloadDir);
-
-                    targetFiles = new String[]{
-                            "Fiberish Broadband Billing Systems.xlsx",
-                            "Fiberish Broadband  Billing Systems.xlsx"
-                    };
-
-                    File latestFile = null;
-
-                    int waitTime = 0;
-                    while (waitTime < 20) { // wait max 20 sec
-                        for (String fileName : targetFiles) {
-                            File f = new File(dir, fileName);
-                            if (f.exists()) {
-                                latestFile = f;
-                                System.out.println("✅ Found file: " + fileName);
-                                break;
-                            }
-                        }
-
-                        if (latestFile != null) break;
-                        Thread.sleep(1000);
-                        waitTime++;
-                    }
-
-                    if (latestFile == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
-                    }
-                    System.out.println("📊 Download completed. Now editing Excel file...");
-
-                    excelFile = latestFile;
-
-                    if (excelFile == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
-                    }
-
-
-                    FileInputStream fis = new FileInputStream(excelFile);
-                    XSSFWorkbook workbook = new XSSFWorkbook(fis);
-                    XSSFSheet sheet = workbook.getSheetAt(0);
-
-                    JSONArray jsonArray = new JSONArray();
-
-                    for (int i = 2; i <= sheet.getLastRowNum(); i++) {
+                        JSONObject row = data.getJSONObject(i);
                         JSONObject obj = new JSONObject();
 
-                        if (sheet.getRow(i) == null) continue;
+                        // 🔑 Extract safely
+                        String rawName = row.optString("user_full_name", "");
 
-                        obj.put("int_id", getCellValue(sheet, i, 1));
-                        obj.put("name", "");
-                        obj.put("manager", "");
-                        obj.put("cnic", "");
-                        obj.put("adrs", "");
-                        obj.put("status", "");
-                        obj.put("mob", "");
-                        obj.put("reg", "");
-                        obj.put("package", getCellValue(sheet, i, 2));
-                        obj.put("rech_dt", getCellValue(sheet, i, 3));
-                        obj.put("exp_dt", "");
+                        // Extract name inside <h6> tag
+                        String name = "";
 
-                        jsonArray.put(obj);
-                    }
-
-                    workbook.close();
-                    fis.close();
-
-                    // 🗑️ delete after processing
-                    if (excelFile.exists()) {
-                        boolean deleted = excelFile.delete();
-                        if (deleted) {
-                            System.out.println("🗑️ File deleted after processing");
-                        } else {
-                            System.out.println("⚠️ Failed to delete file");
+                        Matcher matcher = Pattern.compile("<h6[^>]*>(.*?)</h6>").matcher(rawName);
+                        if (matcher.find()) {
+                            name = matcher.group(1).trim();
                         }
+
+                        // fallback if not found
+                        if (name.isEmpty()) {
+                            name = rawName.replaceAll("<.*?>", "").trim();
+                        }
+                        String address = row.optString("address", "").replaceAll("<.*?>", "").trim();
+                        String pkg = row.optString("package_name", "");
+                        String expiry = row.optString("user_expiry_view", "").replaceAll("<.*?>", ""); // remove HTML
+                        String seller = row.optString("seller_name", "");
+
+                        // Some extra fields (if exist in API)
+                        String usernameVal = row.optString("username", "");
+                        String mobile = row.optString("mobile", "");
+                        String nic = row.optString("nic", "");
+                        String regDate = row.optString("reg_date", "");
+                        String statusRaw = row.optString("status", "");
+
+                        String status = switch (statusRaw) {
+                            case "1" -> "0";
+                            case "2" -> "1";
+                            default -> statusRaw;
+                        };
+
+                        // 🎯 Final structure (your required format)
+                        obj.put("int_id", usernameVal);
+                        obj.put("name", name);
+                        obj.put("manager", seller);
+                        obj.put("cnic", nic);
+                        obj.put("adrs", address);
+                        obj.put("status", status);
+                        obj.put("mob", mobile);
+                        obj.put("reg", regDate);
+                        obj.put("package", pkg);
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", expiry);
+
+                        finalArray.put(obj);
                     }
 
-                    return jsonArray.toString();
+                    driver.quit();
+
+                    return finalArray.toString();
 
                 case "cp_fiberish":
 //                    url = "https://cp.fiberish.net.pk/";
@@ -1060,21 +1178,21 @@ public class AutomationService {
                             continue;
                         }
 
-                        String[] data = line.split(",");
+                        String[] data5 = line.split(",");
 
                         JSONObject obj = new JSONObject();
 
-                        obj.put("int_id", data.length > 3 ? data[3] : "");
-                        obj.put("name", data.length > 5 ? data[5] : "");
+                        obj.put("int_id", data5.length > 3 ? data5[3] : "");
+                        obj.put("name", data5.length > 5 ? data5[5] : "");
                         obj.put("manager", "");
-                        obj.put("cnic", data.length > 6 ? data[6] : "");
-                        obj.put("adrs", data.length > 7 ? data[7] : "");
-                        obj.put("status", data.length > 8 ? data[8] : "");
-                        obj.put("mob", data.length > 12 ? data[12] : "");
-                        obj.put("reg", data.length > 15 ? data[15] : "");
-                        obj.put("package", data.length > 17 ? data[17] : "");
-                        obj.put("rech_dt", data.length > 9 ? data[9] : "");
-                        obj.put("exp_dt", data.length > 23 ? data[23] : "");
+                        obj.put("cnic", data5.length > 6 ? data5[6] : "");
+                        obj.put("adrs", data5.length > 7 ? data5[7] : "");
+                        obj.put("status", data5.length > 8 ? data5[8] : "");
+                        obj.put("mob", data5.length > 12 ? data5[12] : "");
+                        obj.put("reg", data5.length > 15 ? data5[15] : "");
+                        obj.put("package", data5.length > 17 ? data5[17] : "");
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", data5.length > 23 ? data5[23] : "");
 
                         jsonArray5.put(obj);
                     }

@@ -10,10 +10,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -28,8 +24,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,54 +31,7 @@ public class AutomationService {
 
     public static void main(String[] args) throws Exception {
 
-        WebDriver driver;
-
-        if (isFirefoxInstalled()) {
-            System.out.println("🦊 Firefox detected. Using GeckoDriver...");
-            System.setProperty("webdriver.gecko.driver", "geckodriver.exe");
-
-            FirefoxOptions options = new FirefoxOptions();
-//            options.addArguments("--headless"); // headless mode
-            options.addPreference("browser.download.folderList", 2);
-//            options.addPreference("browser.download.dir", "C:\\data\\downloads");
-            options.addPreference("browser.helperApps.neverAsk.saveToDisk",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            options.addPreference("pdfjs.disabled", true);
-            options.addPreference("browser.download.manager.showWhenStarting", false);
-            options.addPreference("browser.download.useDownloadDir", true);
-            options.addPreference("browser.download.alwaysOpenPanel", false);
-            options.addPreference("browser.download.manager.closeWhenDone", true);
-            options.addPreference("signon.rememberSignons", false);
-            options.addPreference("network.proxy.type", 0);
-            options.addPreference("dom.webnotifications.enabled", false);
-
-            driver = new FirefoxDriver(options);
-
-        } else {
-            System.out.println("⚙️ Firefox not found — falling back to Chrome. Using ChromeDriver...");
-            System.setProperty("webdriver.chrome.driver", "chromeDriver.exe");
-
-//        String downloadFilepath = "C:\\data\\downloads\\Fiberish Broadband  Billing Systems.xlsx";
-
-            Map<String, Object> prefs = new HashMap<>();
-//            prefs.put("download.default_directory", "C:\\data\\downloads");
-            prefs.put("download.prompt_for_download", false);
-            prefs.put("download.directory_upgrade", true);
-            prefs.put("safebrowsing.enabled", true);
-            prefs.put("profile.password_manager_leak_detection", false);
-
-            ChromeOptions options = new ChromeOptions();
-            options.setExperimentalOption("prefs", prefs);
-//        options.addArguments("--headless=new");           // run headless
-            options.addArguments("--window-size=1920,1080");  // correct element rendering
-            options.addArguments("--disable-gpu");            // stability for headless
-
-            driver = new ChromeDriver(options);
-        }
-
-//        String result = runAutomation(driver, "saadnet", "asdfasdf", "https://partner.fiberish.net.pk/", "partner_fiberish");
-//        System.out.println(result);
-
+        WebDriver driver = DriverFactory.createDriver();
         driver.quit();
     }
 
@@ -1567,6 +1514,250 @@ public class AutomationService {
                     }
 
                     return jsonArray7.toString();
+
+                case "daddy_sas":
+
+                    WebDriverWait wait8 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir8 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old files containing "users"
+                    File folder8 = new File(downloadDir8);
+                    File[] files8 = folder8.listFiles();
+
+                    if (files8 != null) {
+                        for (File f : files8) {
+                            if (f.getName().toLowerCase().contains("users") && f.getName().endsWith(".xlsx")) {
+                                f.delete();
+                                System.out.println("🧹 Deleted old file: " + f.getName());
+                            }
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Daddy SAS...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    try {
+                        wait8.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        wait8.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[contains(@class,'btn_login')]")
+                        )).click();
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ WAIT FOR LOGIN SUCCESS
+                    boolean loginSuccess8 = false;
+
+                    try {
+                        wait8.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess8 = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess8 = false;
+                    }
+
+                    if (!loginSuccess8) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+
+                    // 📄 Navigate to subscribers page
+                    driver.get(url + "dashboard/subscribers");
+
+                    // 📥 Click Export Button
+                    try {
+                        WebElement exportBtn8 = wait8.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//a[contains(@class,'btn_export')]")
+                                )
+                        );
+
+                        exportBtn8.click();
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Export button not found\"}";
+                    }
+
+                    // ✅ Validate URL
+                    try {
+                        wait8.until(ExpectedConditions.urlContains("/dashboard/report-data-export-jobs"));
+                    } catch (TimeoutException e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Did not navigate to export jobs page\"}";
+                    }
+
+                    Thread.sleep(4000);
+
+                    // 🔄 Refresh once
+                    driver.navigate().refresh();
+
+                    wait8.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//div[contains(@class,'MuiDataGrid-root')]")
+                    ));
+
+                    try {
+                        wait8.until(ExpectedConditions.presenceOfElementLocated(
+                                By.xpath("//div[contains(@class,'MuiDataGrid-row')]")
+                        ));
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Table rows not loaded\"}";
+                    }
+
+                    // ☑️ Click first checkbox
+                    // ☑️ Click FIRST ROW checkbox (STRICT targeting)
+                    try {
+
+                        // wait for first row specifically
+                        WebElement firstRow = wait8.until(
+                                ExpectedConditions.presenceOfElementLocated(
+                                        By.xpath("(//div[@role='row' and @data-rowindex='0'])[1]")
+                                )
+                        );
+
+                        // find checkbox inside that row
+                        WebElement checkbox8 = firstRow.findElement(
+                                By.xpath(".//input[@type='checkbox']")
+                        );
+
+                        // scroll into view (IMPORTANT for MUI)
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", checkbox8);
+
+                        Thread.sleep(500);
+
+                        // click using JS
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", checkbox8);
+
+                        // ✅ VERIFY CHECKED
+                        Thread.sleep(1000);
+
+                        boolean isChecked = checkbox8.isSelected();
+
+                        if (!isChecked) {
+                            driver.quit();
+                            return "{\"status\":\"error\",\"message\":\"Checkbox click failed (not selected)\"}";
+                        }
+
+                        System.out.println("✅ Checkbox clicked successfully");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Checkbox not found or not clickable\"}";
+                    }
+
+                    // ⚙️ Click Actions button
+                    try {
+                        WebElement actionsBtn8 = wait8.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//button[contains(@class,'btn_actions')]")
+                                )
+                        );
+
+                        actionsBtn8.click();
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Actions button not found\"}";
+                    }
+
+                    // 📥 Click Download option
+                    try {
+                        WebElement downloadOption8 = wait8.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//div[contains(@class,'box_utils')]//div[contains(@class,'item')]")
+                                )
+                        );
+
+                        downloadOption8.click();
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Download option not found\"}";
+                    }
+
+                    System.out.println("📥 Download triggered");
+
+                    // ⏳ WAIT FOR FILE (contains "users")
+                    File latestFile8 = null;
+                    int waitTime8 = 0;
+
+                    while (waitTime8 < 25) {
+
+                        File[] files = new File(downloadDir8).listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().toLowerCase().contains("users") && f.getName().endsWith(".xlsx")) {
+                                    latestFile8 = f;
+                                    System.out.println("✅ Found file: " + f.getName());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (latestFile8 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime8++;
+                    }
+
+                    if (latestFile8 == null) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis8 = new FileInputStream(latestFile8);
+                    XSSFWorkbook workbook8 = new XSSFWorkbook(fis8);
+                    XSSFSheet sheet8 = workbook8.getSheetAt(0);
+
+                    JSONArray jsonArray8 = new JSONArray();
+
+                    for (int i = 1; i <= sheet8.getLastRowNum(); i++) {
+
+                        if (sheet8.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+
+                        String firstName = String.valueOf(getCellValue(sheet8, i, 2)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet8, i, 3)).trim();
+
+                        obj.put("int_id", getCellValue(sheet8, i, 1));
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+                        obj.put("manager", "");
+                        obj.put("cnic", getCellValue(sheet8, i, 19));
+                        obj.put("adrs", getCellValue(sheet8, i, 16));
+                        obj.put("status", getCellValue(sheet8, i, 10));
+                        obj.put("mob", getCellValue(sheet8, i, 4));
+                        obj.put("reg", "");
+                        obj.put("package", getCellValue(sheet8, i, 12));
+                        obj.put("rech_dt", getCellValue(sheet8, i, 18));
+                        obj.put("exp_dt", getCellValue(sheet8, i, 10));
+
+                        jsonArray8.put(obj);
+                    }
+
+                    workbook8.close();
+                    fis8.close();
+
+                    // 🗑️ Delete file
+                    if (latestFile8.exists()) {
+                        latestFile8.delete();
+                        System.out.println("🗑️ File deleted");
+                    }
+
+                    System.out.println("🎯 Daddy SAS completed");
+
+                    return jsonArray8.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -496,6 +496,46 @@ public class LoginService {
 
                     System.out.println("✅ Login successful");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "daddy_sas":
+
+                    WebDriverWait wait8 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Daddy SAS...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    try {
+                        wait8.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        wait8.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[contains(@class,'btn_login')]")
+                        )).click();
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ WAIT FOR LOGIN SUCCESS
+                    boolean loginSuccess8 = false;
+
+                    try {
+                        wait8.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess8 = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess8 = false;
+                    }
+
+                    if (!loginSuccess8) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

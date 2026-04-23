@@ -1,0 +1,7 @@
+## ========================================== Command Prompt ==============================================================
+
+mvn exec:java -Dexec.mainClass="automation.Application" -Dserver.port=8999
+
+## ========================================= Windows PowerShell ===========================================================
+
+mvn exec:java '-Dexec.mainClass=automation.Application' '-Dserver.port=8999'

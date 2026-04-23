@@ -25,63 +25,8 @@ public class LoginService {
 
     public static void main(String[] args) throws Exception {
 
-        WebDriver driver;
-
-        if (isFirefoxInstalled()) {
-            System.out.println("🦊 Firefox detected. Using GeckoDriver...");
-            System.setProperty("webdriver.gecko.driver", "geckodriver.exe");
-
-            FirefoxOptions options = new FirefoxOptions();
-//            options.addArguments("--headless"); // headless mode
-            options.addPreference("browser.download.folderList", 2);
-//            options.addPreference("browser.download.dir", "C:\\data\\downloads");
-            options.addPreference("browser.helperApps.neverAsk.saveToDisk",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            options.addPreference("pdfjs.disabled", true);
-            options.addPreference("browser.download.manager.showWhenStarting", false);
-            options.addPreference("browser.download.useDownloadDir", true);
-            options.addPreference("browser.download.alwaysOpenPanel", false);
-            options.addPreference("browser.download.manager.closeWhenDone", true);
-            options.addPreference("signon.rememberSignons", false);
-            options.addPreference("network.proxy.type", 0);
-            options.addPreference("dom.webnotifications.enabled", false);
-
-            driver = new FirefoxDriver(options);
-
-        } else {
-            System.out.println("⚙️ Firefox not found — falling back to Chrome. Using ChromeDriver...");
-            System.setProperty("webdriver.chrome.driver", "chromeDriver.exe");
-
-            Map<String, Object> prefs = new HashMap<>();
-//            prefs.put("download.default_directory", "C:\\data\\downloads");
-            prefs.put("download.prompt_for_download", false);
-            prefs.put("download.directory_upgrade", true);
-            prefs.put("safebrowsing.enabled", true);
-            prefs.put("profile.password_manager_leak_detection", false);
-
-            ChromeOptions options = new ChromeOptions();
-            options.setExperimentalOption("prefs", prefs);
-//        options.addArguments("--headless=new");           // run headless
-            options.addArguments("--window-size=1920,1080");  // correct element rendering
-            options.addArguments("--disable-gpu");            // stability for headless
-
-            driver = new ChromeDriver(options);
-        }
-
+        WebDriver driver = DriverFactory.createDriver();
         driver.quit();
-    }
-
-    // 🔍 Helper method to check if Firefox is installed
-    private static boolean isFirefoxInstalled() {
-        try {
-            Process process = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "where firefox"});
-            Scanner scanner = new Scanner(process.getInputStream());
-            boolean found = scanner.hasNext();
-            scanner.close();
-            return found;
-        } catch (IOException e) {
-            return false;
-        }
     }
 
     public static String solveCaptcha(WebDriver driver) {
@@ -532,6 +477,44 @@ public class LoginService {
                     if (!loginSuccess8) {
                         driver.quit();
                         return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "turbo_zong":
+
+                    WebDriverWait wait9 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Turbo Zong...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    try {
+                        wait9.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        wait9.until(ExpectedConditions.elementToBeClickable(
+                                By.id("signin")
+                        )).click();
+
+                        System.out.println("🔐 Login button clicked");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ Wait after login
+                    Thread.sleep(2000);
+
+                    // ✅ Basic login check (URL change or page load)
+                    try {
+                        wait9.until(ExpectedConditions.urlContains("index_manager.php"));
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed or page not loaded\"}";
                     }
 
                     System.out.println("✅ Login successful");

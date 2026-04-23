@@ -35,19 +35,6 @@ public class AutomationService {
         driver.quit();
     }
 
-    // 🔍 Helper method to check if Firefox is installed
-    private static boolean isFirefoxInstalled() {
-        try {
-            Process process = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "where firefox"});
-            Scanner scanner = new Scanner(process.getInputStream());
-            boolean found = scanner.hasNext();
-            scanner.close();
-            return found;
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
     private static String getCellValue(@NotNull XSSFSheet sheet, int rowIndex, int colIndex) {
         if (sheet.getRow(rowIndex) == null) return "";
         if (sheet.getRow(rowIndex).getCell(colIndex) == null) return "";
@@ -1740,7 +1727,7 @@ public class AutomationService {
                         obj.put("mob", getCellValue(sheet8, i, 4));
                         obj.put("reg", "");
                         obj.put("package", getCellValue(sheet8, i, 12));
-                        obj.put("rech_dt", getCellValue(sheet8, i, 18));
+                        obj.put("rech_dt", "");
                         obj.put("exp_dt", getCellValue(sheet8, i, 10));
 
                         jsonArray8.put(obj);
@@ -1758,6 +1745,149 @@ public class AutomationService {
                     System.out.println("🎯 Daddy SAS completed");
 
                     return jsonArray8.toString();
+
+                case "turbo_zong":
+
+                    WebDriverWait wait9 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir9 = System.getProperty("user.home") + "\\Downloads";
+
+                    String targetFileName9 = "Customers List NBB1BAHWANA Zong Turbo Net.xlsx";
+
+                    // 🧹 Delete old file
+                    File oldFile9 = new File(downloadDir9, targetFileName9);
+                    if (oldFile9.exists()) {
+                        oldFile9.delete();
+                        System.out.println("🧹 Deleted old file: " + targetFileName9);
+                    }
+
+                    System.out.println("🚀 Opening Zong Turbo...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    try {
+                        wait9.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        wait9.until(ExpectedConditions.elementToBeClickable(
+                                By.id("signin")
+                        )).click();
+
+                        System.out.println("🔐 Login button clicked");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ Wait after login
+                    Thread.sleep(2000);
+
+                    // ✅ Basic login check (URL change or page load)
+                    try {
+                        wait9.until(ExpectedConditions.urlContains("index_manager.php"));
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed or page not loaded\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+
+                    // 📄 Navigate to customers page
+                    driver.get(url + "/customers.php");
+
+                    try {
+                        wait9.until(ExpectedConditions.presenceOfElementLocated(
+                                By.xpath("//button[contains(@class,'buttons-excel')]")
+                        ));
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Customers page not loaded\"}";
+                    }
+
+                    System.out.println("📄 Navigated to customers page");
+
+                    // 📥 Click Excel button
+                    try {
+                        WebElement excelBtn9 = wait9.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//button[contains(@class,'buttons-excel')]")
+                                )
+                        );
+
+                        excelBtn9.click();
+
+                        System.out.println("📥 Excel button clicked");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Excel button not found\"}";
+                    }
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile9 = null;
+                    int waitTime9 = 0;
+
+                    while (waitTime9 < 25) {
+
+                        File f = new File(downloadDir9, targetFileName9);
+
+                        if (f.exists()) {
+                            latestFile9 = f;
+                            System.out.println("✅ Found file: " + targetFileName9);
+                            break;
+                        }
+
+                        Thread.sleep(1000);
+                        waitTime9++;
+                    }
+
+                    if (latestFile9 == null) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis9 = new FileInputStream(latestFile9);
+                    XSSFWorkbook workbook9 = new XSSFWorkbook(fis9);
+                    XSSFSheet sheet9 = workbook9.getSheetAt(0);
+
+                    JSONArray jsonArray9 = new JSONArray();
+
+                    for (int i = 2; i <= sheet9.getLastRowNum(); i++) {
+
+                        if (sheet9.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+
+                        obj.put("int_id", getCellValue(sheet9, i, 3));
+                        obj.put("name", getCellValue(sheet9, i, 4));
+                        obj.put("manager", getCellValue(sheet9, i, 2));
+                        obj.put("cnic", getCellValue(sheet9, i, 6));
+                        obj.put("adrs", getCellValue(sheet9, i, 12));
+                        obj.put("status", "");
+                        obj.put("mob", getCellValue(sheet9, i, 5));
+                        obj.put("reg", getCellValue(sheet9, i, 8));
+                        obj.put("package", getCellValue(sheet9, i, 10));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet9, i, 9));
+
+                        jsonArray9.put(obj);
+                    }
+
+                    workbook9.close();
+                    fis9.close();
+
+                    // 🗑️ Delete file
+                    if (latestFile9.exists()) {
+                        latestFile9.delete();
+                        System.out.println("🗑️ File deleted");
+                    }
+
+                    System.out.println("🎯 Zong Turbo completed");
+
+                    return jsonArray9.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

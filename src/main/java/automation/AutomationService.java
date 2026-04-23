@@ -10,6 +10,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 public class AutomationService {
 
@@ -1888,6 +1890,271 @@ public class AutomationService {
                     System.out.println("🎯 Zong Turbo completed");
 
                     return jsonArray9.toString();
+
+                case "galaxy":
+
+                    WebDriverWait wait10 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir10 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    File folder10 = new File(downloadDir10);
+                    File[] files10 = folder10.listFiles();
+
+                    if (files10 != null) {
+                        for (File f : files10) {
+                            if (f.getName().toLowerCase().contains("users") && f.getName().endsWith(".xlsx")) {
+                                f.delete();
+                                System.out.println("🧹 Deleted old file: " + f.getName());
+                            }
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Galaxy...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait10.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait10.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait10.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful, continuing...");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    try {
+                        List<WebElement> closeBtns = driver.findElements(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        );
+
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+
+                            System.out.println("✅ Close popup found, clicking...");
+
+                            WebElement closeBtn = closeBtns.get(0);
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error while closing popup, skipping...");
+                    }
+
+                    // 📄 Navigate to report page
+                    driver.get(url + "#/users/index");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait10.until(ExpectedConditions.urlContains("#/users/index"));
+                    System.out.println("📄 Navigated to activations report");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 📥 Click Export Button
+                    exportBtn = wait10.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
+                            )
+                    );
+
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+
+                    System.out.println("📥 Export button clicked");
+
+                    try {
+                        wait10.until(ExpectedConditions.urlContains("#/report/dataExportJobs"));
+                    } catch (TimeoutException e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Did not navigate to export jobs page\"}";
+                    }
+
+                    Thread.sleep(4000);
+
+                    // 🔄 Refresh once
+                    driver.navigate().refresh();
+
+                    wait10.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//tr[contains(@class,'ng-star-inserted')]")
+                    ));
+
+                    try {
+
+                        // ✅ Click first row
+                        WebElement firstRow = wait10.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("(//tr[contains(@class,'ng-star-inserted')])[1]")
+                                )
+                        );
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", firstRow);
+                        Thread.sleep(500);
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", firstRow);
+
+                        System.out.println("✅ First row clicked");
+
+                        // ✅ Click Actions button
+                        // ✅ Click Actions button (FIXED VERSION)
+                        WebElement actionsBtn = wait10.until(
+                                ExpectedConditions.presenceOfElementLocated(
+                                        By.xpath("//button[contains(@class,'actions-button')]")
+                                )
+                        );
+
+                        // 🔽 Scroll with offset (VERY IMPORTANT)
+                        ((JavascriptExecutor) driver).executeScript(
+                                "window.scrollBy(0, -150);" // move slightly up to avoid header overlap
+                        );
+
+                        // OR better: center element in screen
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].scrollIntoView({block: 'center'});", actionsBtn
+                        );
+
+                        Thread.sleep(500);
+
+                        // 💥 Force click using JS (bypass overlay issue)
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].click();", actionsBtn
+                        );
+
+                        System.out.println("⚙️ Actions button clicked (JS)");
+
+                        try {
+
+                            // ✅ Wait for visible overlay menu
+                            WebElement menu = wait10.until(ExpectedConditions.visibilityOfElementLocated(
+                                    By.xpath("//div[contains(@class,'p-menu-overlay') and contains(@class,'ng-star-inserted')]")
+                            ));
+
+                            // ✅ Target the clickable <a> inside menu
+                            WebElement downloadBtn = menu.findElement(
+                                    By.xpath(".//span[normalize-space()='Download']/ancestor::a")
+                            );
+
+                            // scroll (safety)
+                            ((JavascriptExecutor) driver).executeScript(
+                                    "arguments[0].scrollIntoView({block:'center'});", downloadBtn
+                            );
+
+                            Thread.sleep(300);
+
+                            // 💥 FORCE CLICK (PrimeNG fix)
+                            ((JavascriptExecutor) driver).executeScript(
+                                    "arguments[0].click();", downloadBtn
+                            );
+
+                            System.out.println("📥 Download clicked SUCCESS");
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            driver.quit();
+                            return "{\"status\":\"error\",\"message\":\"Download click failed\"}";
+                        }
+                    } finally {
+                        System.out.println("📥 Download triggered");
+                    }
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile10 = null;
+                    int waitTime10 = 0;
+
+                    while (waitTime10 < 25) {
+
+                        File[] files = new File(downloadDir10).listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().toLowerCase().contains("users") && f.getName().endsWith(".xlsx")) {
+                                    latestFile10 = f;
+                                    System.out.println("✅ Found file: " + f.getName());
+                                    break;
+                                }
+                            }
+                        }
+                        if (latestFile10 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime10++;
+                    }
+
+                    if (latestFile10 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis10 = new FileInputStream(latestFile10);
+                    XSSFWorkbook workbook10 = new XSSFWorkbook(fis10);
+                    XSSFSheet sheet10 = workbook10.getSheetAt(0);
+
+                    JSONArray jsonArray10 = new JSONArray();
+
+                    for (int i = 1; i <= sheet10.getLastRowNum(); i++) {
+
+                        if (sheet10.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+                        obj.put("int_id", getCellValue(sheet10, i, 1));
+                        String firstName = String.valueOf(getCellValue(sheet10, i, 2)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet10, i, 3)).trim();
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+                        obj.put("manager", "");
+                        obj.put("cnic", getCellValue(sheet10, i, 19));
+                        obj.put("adrs", getCellValue(sheet10, i, 16));
+                        obj.put("status", getCellValue(sheet10, i, 10));
+                        obj.put("mob", getCellValue(sheet10, i, 5));
+                        obj.put("reg", getCellValue(sheet10, i, 18));
+                        obj.put("package", getCellValue(sheet10, i, 12));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet10, i, 7));
+
+                        jsonArray10.put(obj);
+                    }
+
+                    workbook10.close();
+                    fis10.close();
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile10.exists()) {
+                        latestFile10.delete();
+                        System.out.println("🗑️ Galaxy file deleted");
+                        System.out.println("The End");
+                    }
+
+                    return jsonArray10.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

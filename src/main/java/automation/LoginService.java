@@ -519,6 +519,49 @@ public class LoginService {
 
                     System.out.println("✅ Login successful");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "galaxy":
+
+                    WebDriverWait wait10 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Galaxy...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait10.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait10.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait10.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

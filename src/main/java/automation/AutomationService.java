@@ -2155,6 +2155,238 @@ public class AutomationService {
                     }
 
                     return jsonArray10.toString();
+
+                case "alfa":
+
+                    WebDriverWait wait11 = new WebDriverWait(driver, Duration.ofSeconds(20));
+                    String downloadDir11 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    File folder11 = new File(downloadDir11);
+                    File[] files11 = folder11.listFiles();
+
+                    if (files11 != null) {
+                        for (File f : files11) {
+                            if (f.getName().contains("Customer List")
+                                    && f.getName().contains("-south")
+                                    && f.getName().endsWith(".csv")) {
+
+                                f.delete();
+                                System.out.println("🧹 Deleted old file: " + f.getName());
+                            }
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Alfa Broadband...");
+
+                    maxAttempts = 3;
+                    loginSuccess = false;
+
+                    String currentUrl11 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        driver.get(url);
+
+                        // 🔐 Enter username & password
+                        wait11.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
+
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
+
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
+                        }
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl11 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl11);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (!captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    if (!currentUrl11.equals("https://partner.alfabroadband.com/")) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    // ✅ LOGIN SUCCESS
+                    System.out.println("✅ Alfa Broadband login successful!");
+
+                    // ❌ Close popup if appears
+                    try {
+                        WebElement closePopup = wait11.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@class='close']")
+                        ));
+                        closePopup.click();
+                        System.out.println("✅ Popup closed");
+                    } catch (TimeoutException e) {
+                        System.out.println("⚠️ No popup appeared");
+                    }
+                    System.out.println("📄 Navigating to customers page...");
+                    driver.get(url + "/customer/customers");
+
+                    wait11.until(webDriver ->
+                            ((JavascriptExecutor) webDriver)
+                                    .executeScript("return document.readyState")
+                                    .equals("complete")
+                    );
+
+                    System.out.println("🔍 Clicking Search button...");
+
+                    WebElement searchBtn11 = wait11.until(
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnSubmit"))
+                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn11);
+
+                    Thread.sleep(1000);
+
+                    try {
+                        searchBtn11.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn11);
+                    }
+
+                    System.out.println("🔍 Search clicked");
+
+                    Thread.sleep(4000);
+
+                    WebElement exportBtn11 = wait11.until(
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnExport"))
+                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", exportBtn11);
+
+                    Thread.sleep(1000);
+
+                    try {
+                        exportBtn11.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn11);
+                    }
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile11 = null;
+                    int waitTime11 = 0;
+
+                    while (waitTime11 < 30) {
+
+                        File folder = new File(downloadDir11);
+                        File[] files = folder.listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().contains("Customer List") && f.getName().endsWith(".csv")) {
+                                    latestFile11 = f;
+                                    System.out.println("✅ Found file: " + f.getName());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (latestFile11 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime11++;
+                    }
+
+                    if (latestFile11 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+                    // 📊 CONVERT EXCEL → JSON
+                    reader = new CSVReader(new FileReader(latestFile11));
+                    String[] data11;
+
+                    JSONArray jsonArray11 = new JSONArray();
+                    isHeader = true;
+
+                    while ((data11 = reader.readNext()) != null) {
+
+                        if (isHeader) {
+                            isHeader = false;
+                            continue;
+                        }
+
+                        JSONObject obj = new JSONObject();
+
+                        obj.put("int_id", data11.length > 3 ? data11[3] : "");
+                        obj.put("name", data11.length > 5 ? data11[5] : "");
+                        obj.put("manager", "");
+                        obj.put("cnic", data11.length > 6 ? data11[6] : "");
+                        obj.put("adrs", data11.length > 7 ? data11[7] : "");
+                        obj.put("status", data11.length > 8 ? data11[8] : "");
+                        obj.put("mob", data11.length > 12 ? data11[12] : "");
+                        obj.put("reg", data11.length > 15 ? data11[15] : "");
+                        obj.put("package", data11.length > 17 ? data11[17] : "");
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", data11.length > 23 ? data11[23] : "");
+
+                        jsonArray11.put(obj);
+                    }
+
+                    reader.close();
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile11.exists()) {
+                        latestFile11.delete();
+                        System.out.println("🗑️ Alfa Broadband customer list file deleted");
+                    }
+
+                    System.out.println("✅ Done");
+
+                    return jsonArray11.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

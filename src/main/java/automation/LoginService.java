@@ -562,6 +562,98 @@ public class LoginService {
 
                     System.out.println("✅ Login successful");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "alfa":
+
+                    WebDriverWait wait11 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Alfa Broadband...");
+
+                    maxAttempts = 3;
+                    loginSuccess = false;
+
+                    String currentUrl11 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        driver.get(url);
+
+                        // 🔐 Enter username & password
+                        wait11.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
+
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
+
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
+                        }
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl11 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl11);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (!captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    if (!currentUrl11.equals("https://partner.alfabroadband.com/")) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    // ✅ LOGIN SUCCESS
+                    System.out.println("✅ Alfa Broadband login successful!");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

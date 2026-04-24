@@ -10,6 +10,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -545,47 +546,93 @@ public class AutomationService {
 
                     System.out.println("✅ Login successful, continuing...");
 
-                    System.out.println("📄 Navigating to sale reports...");
-                    driver.get(url + "/reseller/salereports");
+                    System.out.println("📄 Navigating to user reports...");
+                    driver.get(url + "/user/user/all");
 
-                    WebElement dateInput = wait2.until(
-                            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@id=\"panel\"]/div[2]/div[1]/div/div[1]/div/form/div/div[1]/div/input"))
+                    // ⏳ Wait for table length dropdown
+                    // ⏳ wait for page load
+                    wait2.until(ExpectedConditions.presenceOfElementLocated(By.id("userListAll")));
+
+                    // ⏳ wait for loader overlay to disappear
+                    wait2.until(ExpectedConditions.invisibilityOfElementLocated(By.id("loading")));
+
+                    // 🎯 now safely select dropdown
+                    WebElement lengthDropdown = wait2.until(
+                            ExpectedConditions.presenceOfElementLocated(By.name("userListAll_length"))
                     );
-                    dateInput.clear();
-                    dateInput.sendKeys("2025-10-1");
 
-                    Thread.sleep(2000);
+                    // 🚀 Force set value via JS (bypasses overlay)
+                    ((JavascriptExecutor) driver).executeScript(
+                            "arguments[0].value='-1'; arguments[0].dispatchEvent(new Event('change'));",
+                            lengthDropdown
+                    );
 
-                    driver.findElement(By.xpath("//*[@id=\"panel\"]/div[2]/div[1]/div/div[1]/div/form/div/div[4]/div")).click();
+                    System.out.println("📊 Set table entries to ALL (JS)");
 
-                    Thread.sleep(3000);
+                    // ⏳ VERY IMPORTANT: wait for table to reload after changing length
+                    wait2.until(d -> {
+                        List<WebElement> rows = d.findElements(By.cssSelector("#userListAll tbody tr"));
+                        return rows.size() > 20;
+                    });
 
-                    System.out.println("📥 Clicking download button...");
-                    wait2.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//*[@id=\"DataTables_Table_0_wrapper\"]/div[2]/button[3]")
-                    )).click();
+                    WebElement excelBtn = wait2.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//button[contains(@class,'buttons-excel')]")
+                            )
+                    );
+
+                    // scroll (important for hidden/dynamic tables)
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", excelBtn);
+                    Thread.sleep(1000);
+
+                    try {
+                        excelBtn.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", excelBtn);
+                    }
+
+                    System.out.println("📥 Excel button clicked");
 
                     // ⏳ Wait for file
                     File latestFile2 = null;
                     int waitTime2 = 0;
 
-                    while (waitTime2 < 20) {
-                        for (String fileName : targetFiles2) {
-                            File f = new File(downloadDir2, fileName);
-                            if (f.exists()) {
-                                latestFile2 = f;
-                                System.out.println("✅ Found file: " + fileName);
-                                break;
+                    while (waitTime2 < 40) {
+
+                        File folder = new File(downloadDir2);
+                        File[] files = folder.listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().contains("Fiberish Broadband Billing Systems") && f.getName().endsWith(".xlsx")) {
+
+                                    // ✅ Check file is not empty
+                                    if (f.length() == 0) {
+                                        continue;
+                                    }
+
+                                    // ✅ Wait until file size stops changing (download complete)
+                                    long size1 = f.length();
+                                    Thread.sleep(1000);
+                                    long size2 = f.length();
+
+                                    if (size1 == size2) {
+                                        latestFile2 = f;
+                                        System.out.println("✅ File fully downloaded: " + f.getName());
+                                        break;
+                                    }
+                                }
                             }
                         }
+
                         if (latestFile2 != null) break;
 
                         Thread.sleep(1000);
                         waitTime2++;
                     }
 
-                    if (latestFile2 == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    if (latestFile2.length() < 50) {
+                        return "{\"status\":\"error\",\"message\":\"File is empty or not fully downloaded\"}";
                     }
 
                     // 📊 Convert Excel → JSON
@@ -601,16 +648,23 @@ public class AutomationService {
 
                         JSONObject obj = new JSONObject();
                         obj.put("int_id", getCellValue(sheet2, i, 1));
-                        obj.put("name", "");
-                        obj.put("manager", "");
+                        String rawName = getCellValue(sheet2, i, 0);
+
+                        // remove bullet + extra spaces
+                        String cleanName = rawName
+                                .replace("●", "")     // remove bullet
+                                .trim();              // remove spaces
+
+                        obj.put("name", cleanName);
+                        obj.put("manager", getCellValue(sheet2, i, 4));
                         obj.put("cnic", "");
-                        obj.put("adrs", "");
+                        obj.put("adrs", getCellValue(sheet2, i, 2));
                         obj.put("status", "");
                         obj.put("mob", "");
                         obj.put("reg", "");
-                        obj.put("package", getCellValue(sheet2, i, 2));
-                        obj.put("rech_dt", getCellValue(sheet2, i, 3));
-                        obj.put("exp_dt", "");
+                        obj.put("package", getCellValue(sheet2, i, 3));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet2, i, 6));
 
                         jsonArray2.put(obj);
                     }
@@ -940,7 +994,7 @@ public class AutomationService {
                     if (files5 != null) {
                         for (File f : files5) {
                             if (f.getName().contains("Customer List")
-                                    && f.getName().contains("-north")
+                                    && (f.getName().contains("-south") || f.getName().contains("-north"))
                                     && f.getName().endsWith(".csv")) {
 
                                 f.delete();
@@ -1093,7 +1147,7 @@ public class AutomationService {
                     File latestFile5 = null;
                     int waitTime5 = 0;
 
-                    while (waitTime5 < 30) {
+                    while (waitTime5 < 40) {
 
                         File folder = new File(downloadDir5);
                         File[] files = folder.listFiles();
@@ -1101,9 +1155,22 @@ public class AutomationService {
                         if (files != null) {
                             for (File f : files) {
                                 if (f.getName().contains("Customer List") && f.getName().endsWith(".csv")) {
-                                    latestFile5 = f;
-                                    System.out.println("✅ Found file: " + f.getName());
-                                    break;
+
+                                    // ✅ Check file is not empty
+                                    if (f.length() == 0) {
+                                        continue;
+                                    }
+
+                                    // ✅ Wait until file size stops changing (download complete)
+                                    long size1 = f.length();
+                                    Thread.sleep(1000);
+                                    long size2 = f.length();
+
+                                    if (size1 == size2) {
+                                        latestFile5 = f;
+                                        System.out.println("✅ File fully downloaded: " + f.getName());
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1114,8 +1181,8 @@ public class AutomationService {
                         waitTime5++;
                     }
 
-                    if (latestFile5 == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    if (latestFile5.length() < 50) {
+                        return "{\"status\":\"error\",\"message\":\"File is empty or not fully downloaded\"}";
                     }
                     // 📊 CONVERT EXCEL → JSON
                     CSVReader reader = new CSVReader(new FileReader(latestFile5));
@@ -2168,7 +2235,7 @@ public class AutomationService {
                     if (files11 != null) {
                         for (File f : files11) {
                             if (f.getName().contains("Customer List")
-                                    && f.getName().contains("-south")
+                                    && (f.getName().contains("-south") || f.getName().contains("-north"))
                                     && f.getName().endsWith(".csv")) {
 
                                 f.delete();
@@ -2321,7 +2388,7 @@ public class AutomationService {
                     File latestFile11 = null;
                     int waitTime11 = 0;
 
-                    while (waitTime11 < 30) {
+                    while (waitTime11 < 40) {
 
                         File folder = new File(downloadDir11);
                         File[] files = folder.listFiles();
@@ -2329,9 +2396,22 @@ public class AutomationService {
                         if (files != null) {
                             for (File f : files) {
                                 if (f.getName().contains("Customer List") && f.getName().endsWith(".csv")) {
-                                    latestFile11 = f;
-                                    System.out.println("✅ Found file: " + f.getName());
-                                    break;
+
+                                    // ✅ Check file is not empty
+                                    if (f.length() == 0) {
+                                        continue;
+                                    }
+
+                                    // ✅ Wait until file size stops changing (download complete)
+                                    long size1 = f.length();
+                                    Thread.sleep(1000);
+                                    long size2 = f.length();
+
+                                    if (size1 == size2) {
+                                        latestFile5 = f;
+                                        System.out.println("✅ File fully downloaded: " + f.getName());
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -2538,6 +2618,418 @@ public class AutomationService {
                     System.out.println("✅ Optix data extraction complete");
 
                     return finalArrayOptix.toString();
+
+                case "partner_cxtreme":
+
+                    WebDriverWait wait13 = new WebDriverWait(driver, Duration.ofSeconds(20));
+                    String downloadDir13 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    File folder13 = new File(downloadDir13);
+                    File[] files13 = folder13.listFiles();
+
+                    if (files13 != null) {
+                        for (File f : files13) {
+                            if (f.getName().contains("Customer List")
+                                    && f.getName().endsWith(".csv")) {
+
+                                f.delete();
+                                System.out.println("🧹 Deleted old file: " + f.getName());
+                            }
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Alfa Broadband...");
+
+                    maxAttempts = 3;
+                    loginSuccess = false;
+
+                    String currentUrl13 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        driver.get(url);
+
+                        // 🔐 Enter username & password
+                        wait13.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
+
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
+
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
+                        }
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl13 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl13);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (!captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    if (!currentUrl13.equals("https://partner.cxtreme.pk/")) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    // ✅ LOGIN SUCCESS
+                    System.out.println("✅ Alfa Broadband login successful!");
+
+                    // ❌ Close popup if appears
+                    try {
+                        WebElement closePopup = wait13.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@class='close']")
+                        ));
+                        closePopup.click();
+                        System.out.println("✅ Popup closed");
+                    } catch (TimeoutException e) {
+                        System.out.println("⚠️ No popup appeared");
+                    }
+                    System.out.println("📄 Navigating to customers page...");
+                    driver.get(url + "/customer/customers");
+
+                    wait13.until(webDriver ->
+                            ((JavascriptExecutor) webDriver)
+                                    .executeScript("return document.readyState")
+                                    .equals("complete")
+                    );
+
+                    System.out.println("🔍 Clicking Search button...");
+
+                    WebElement searchBtn13 = wait13.until(
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnSubmit"))
+                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn13);
+
+                    Thread.sleep(1000);
+
+                    try {
+                        searchBtn13.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn13);
+                    }
+
+                    System.out.println("🔍 Search clicked");
+
+                    Thread.sleep(4000);
+
+                    WebElement exportBtn13 = wait13.until(
+                            ExpectedConditions.visibilityOfElementLocated(By.id("btnExport"))
+                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", exportBtn13);
+
+                    Thread.sleep(1000);
+
+                    try {
+                        exportBtn13.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn13);
+                    }
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile13 = null;
+                    int waitTime13 = 0;
+
+                    while (waitTime13 < 40) {
+
+                        File folder = new File(downloadDir13);
+                        File[] files = folder.listFiles();
+
+                        if (files != null) {
+                            for (File f : files) {
+                                if (f.getName().contains("Customer List") && f.getName().endsWith(".csv")) {
+
+                                    // ✅ Check file is not empty
+                                    if (f.length() == 0) {
+                                        continue;
+                                    }
+
+                                    // ✅ Wait until file size stops changing (download complete)
+                                    long size1 = f.length();
+                                    Thread.sleep(1000);
+                                    long size2 = f.length();
+
+                                    if (size1 == size2) {
+                                        latestFile5 = f;
+                                        System.out.println("✅ File fully downloaded: " + f.getName());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (latestFile13 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime13++;
+                    }
+
+                    if (latestFile13 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+                    // 📊 CONVERT EXCEL → JSON
+                    reader = new CSVReader(new FileReader(latestFile13));
+                    String[] data13;
+
+                    JSONArray jsonArray13 = new JSONArray();
+                    isHeader = true;
+
+                    while ((data13 = reader.readNext()) != null) {
+
+                        if (isHeader) {
+                            isHeader = false;
+                            continue;
+                        }
+
+                        JSONObject obj = new JSONObject();
+
+                        obj.put("int_id", data13.length > 3 ? data13[3] : "");
+                        obj.put("name", data13.length > 5 ? data13[5] : "");
+                        obj.put("manager", "");
+                        obj.put("cnic", data13.length > 6 ? data13[6] : "");
+                        obj.put("adrs", data13.length > 7 ? data13[7] : "");
+                        obj.put("status", data13.length > 8 ? data13[8] : "");
+                        obj.put("mob", data13.length > 12 ? data13[12] : "");
+                        obj.put("reg", data13.length > 15 ? data13[15] : "");
+                        obj.put("package", data13.length > 17 ? data13[17] : "");
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", data13.length > 23 ? data13[23] : "");
+
+                        jsonArray13.put(obj);
+                    }
+
+                    reader.close();
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile13.exists()) {
+                        latestFile13.delete();
+                        System.out.println("🗑️ Alfa Broadband customer list file deleted");
+                    }
+
+                    System.out.println("✅ Done");
+
+                    return jsonArray13.toString();
+
+                case "wellnet":
+
+                    WebDriverWait wait14 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir14 = System.getProperty("user.home") + "\\Downloads";
+
+                    // 🧹 Delete old file if exists
+                    String[] targetFiles14 = {"sas4_export.xlsx"};
+
+                    // 🧹 Delete old files BEFORE
+                    for (String fileName : targetFiles14) {
+                        File f = new File(downloadDir14, fileName);
+                        if (f.exists()) {
+                            f.delete();
+                            System.out.println("🧹 Deleted old file: " + fileName);
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Wellnet...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait14.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait14.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait14.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful, continuing...");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    try {
+                        List<WebElement> closeBtns = driver.findElements(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        );
+
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+
+                            System.out.println("✅ Close popup found, clicking...");
+
+                            WebElement closeBtn = closeBtns.get(0);
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error while closing popup, skipping...");
+                    }
+
+                    // 📄 Navigate to report page
+                    driver.get(url + "#/report/activations");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait14.until(ExpectedConditions.urlContains("activations"));
+                    System.out.println("📄 Navigated to activations report");
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 📥 Click Export Button
+                    exportBtn = wait14.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
+                            )
+                    );
+
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+
+                    System.out.println("📥 Export button clicked");
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile14 = null;
+                    int waitTime14 = 0;
+
+                    while (waitTime14 < 20) {
+                        for (String fileName : targetFiles14) {
+                            File f = new File(downloadDir14, fileName);
+                            if (f.exists()) {
+                                latestFile14 = f;
+                                System.out.println("✅ Found file: " + fileName);
+                                break;
+                            }
+                        }
+                        if (latestFile14 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime14++;
+                    }
+
+                    if (latestFile14 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    FileInputStream fis14 = new FileInputStream(latestFile14);
+                    XSSFWorkbook workbook14 = new XSSFWorkbook(fis14);
+                    XSSFSheet sheet14 = workbook14.getSheetAt(0);
+
+                    JSONArray jsonArray14 = new JSONArray();
+
+                    for (int i = 1; i <= sheet14.getLastRowNum(); i++) {
+
+                        if (sheet14.getRow(i) == null) continue;
+
+                        JSONObject obj = new JSONObject();
+                        obj.put("int_id", getCellValue(sheet14, i, 2));
+                        String firstName = String.valueOf(getCellValue(sheet14, i, 3)).trim();
+                        String lastName = String.valueOf(getCellValue(sheet14, i, 4)).trim();
+                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
+//                        obj.put("name", fullName);
+                        obj.put("manager", getCellValue(sheet14, i, 5));
+                        obj.put("cnic", "");
+                        obj.put("adrs", "");
+                        obj.put("status", "");
+                        obj.put("mob", "");
+                        obj.put("reg", "");
+                        obj.put("package", getCellValue(sheet14, i, 8));
+                        obj.put("rech_dt", "");
+                        obj.put("exp_dt", getCellValue(sheet14, i, 10));
+
+                        jsonArray14.put(obj);
+                    }
+
+                    workbook14.close();
+                    fis14.close();
+
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile14.exists()) {
+                        latestFile14.delete();
+                        System.out.println("🗑️ Wellnet file deleted");
+                        System.out.println("The End");
+                    }
+
+                    return jsonArray14.toString();
+
             }
         } catch (Exception e) {
             e.printStackTrace();

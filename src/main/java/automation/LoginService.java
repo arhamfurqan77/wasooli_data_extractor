@@ -6,20 +6,17 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
-import java.util.Scanner;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Base64;
 
 public class LoginService {
 
@@ -695,6 +692,142 @@ public class LoginService {
                     }
 
                     System.out.println("✅ Optix login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "partner_cxtreme":
+
+                    WebDriverWait wait13 = new WebDriverWait(driver, Duration.ofSeconds(20));
+                    String downloadDir13 = System.getProperty("user.home") + "\\Downloads";
+
+                    System.out.println("🚀 Opening Alfa Broadband...");
+
+                    maxAttempts = 3;
+                    loginSuccess = false;
+
+                    String currentUrl13 = null;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        driver.get(url);
+
+                        // 🔐 Enter username & password
+                        wait13.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.id("loginform-username")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.id("loginform-password")).sendKeys(password);
+
+                        // 🧠 Solve captcha using OCR
+                        String ocrText = solveCaptcha(driver);
+
+                        if (ocrText == null || ocrText.isEmpty()) {
+                            System.out.println("⚠️ OCR failed, retrying...");
+                            continue;
+                        }
+
+                        int result;
+
+                        try {
+                            result = extractAndSolve(ocrText);
+                            System.out.println("🧮 Captcha solved: " + result);
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Captcha parse failed, retrying...");
+                            continue;
+                        }
+
+                        // ✍️ Enter captcha
+                        driver.findElement(By.id("loginform-captcha")).clear();
+                        driver.findElement(By.id("loginform-captcha")).sendKeys(String.valueOf(result));
+
+                        // 🔘 Click login
+                        driver.findElement(By.xpath("//button[@type='submit']")).click();
+
+                        // ⏳ Wait after login
+                        Thread.sleep(3000);
+
+                        // 🌐 Get current URL
+                        currentUrl13 = driver.getCurrentUrl();
+                        System.out.println("🌐 Current URL: " + currentUrl13);
+
+                        // ❗ Check captcha error message
+                        boolean captchaError = false;
+
+                        try {
+                            WebElement captchaErrorElement = driver.findElement(
+                                    By.xpath("//*[contains(text(),'The verification code is incorrect.')]")
+                            );
+                            if (captchaErrorElement.isDisplayed()) {
+                                captchaError = true;
+                            }
+                        } catch (NoSuchElementException ignored) {
+                        }
+
+                        // ❌ CASE 1: CAPTCHA WRONG
+                        if (!captchaError) {
+                            loginSuccess = true;
+                            break;
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    if (!currentUrl13.equals("https://partner.cxtreme.pk/")) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    // ✅ LOGIN SUCCESS
+                    System.out.println("✅ Alfa Broadband login successful!");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "wellnet":
+
+                    WebDriverWait wait14 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Wellnet...");
+
+                    driver.get(url);
+
+                    // 🔐 LOGIN
+                    wait14.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//input[@name='username']")
+                    )).sendKeys(username);
+
+                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                    wait14.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                    )).click();
+
+                    // ⏳ Wait after login click
+                    Thread.sleep(2000);
+
+                    // ⏳ Wait for redirect after login
+                    loginSuccess = false;
+
+                    try {
+                        wait14.until(ExpectedConditions.urlContains("/dashboard"));
+                        loginSuccess = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess = false;
+                    }
+
+                    // ❌ If login failed → stop execution
+                    if (!loginSuccess) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        System.out.println("The End");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Login successful");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {

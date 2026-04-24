@@ -654,6 +654,48 @@ public class LoginService {
                     // ✅ LOGIN SUCCESS
                     System.out.println("✅ Alfa Broadband login successful!");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "optix":
+
+                    WebDriverWait waitOptix = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Optix...");
+                    driver.get(url);
+
+                    try {
+                        // 🔐 LOGIN
+                        waitOptix.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        WebElement loginBtnOptix = waitOptix.until(
+                                ExpectedConditions.elementToBeClickable(By.id("send"))
+                        );
+                        loginBtnOptix.click();
+
+                        Thread.sleep(2000);
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login page elements not found\"}";
+                    }
+
+                    // ✅ CHECK LOGIN SUCCESS
+                    boolean loginSuccessOptix = false;
+
+                    try {
+                        waitOptix.until(ExpectedConditions.urlContains("/home.html"));
+                        loginSuccessOptix = true;
+                    } catch (TimeoutException e) {
+                        loginSuccessOptix = false;
+                    }
+
+                    if (!loginSuccessOptix) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials or login failed\"}";
+                    }
+
+                    System.out.println("✅ Optix login successful");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

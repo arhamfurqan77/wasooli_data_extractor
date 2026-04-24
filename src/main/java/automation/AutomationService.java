@@ -2387,6 +2387,157 @@ public class AutomationService {
                     System.out.println("✅ Done");
 
                     return jsonArray11.toString();
+
+                case "optix":
+
+                    WebDriverWait waitOptix = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    System.out.println("🚀 Opening Optix...");
+                    driver.get(url);
+
+                    try {
+                        // 🔐 LOGIN
+                        waitOptix.until(ExpectedConditions.visibilityOfElementLocated(By.id("username"))).sendKeys(username);
+                        driver.findElement(By.id("password")).sendKeys(password);
+
+                        WebElement loginBtnOptix = waitOptix.until(
+                                ExpectedConditions.elementToBeClickable(By.id("send"))
+                        );
+                        loginBtnOptix.click();
+
+                        Thread.sleep(2000);
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login page elements not found\"}";
+                    }
+
+                    // ✅ CHECK LOGIN SUCCESS
+                    boolean loginSuccessOptix = false;
+
+                    try {
+                        waitOptix.until(ExpectedConditions.urlContains("/home.html"));
+                        loginSuccessOptix = true;
+                    } catch (TimeoutException e) {
+                        loginSuccessOptix = false;
+                    }
+
+                    if (!loginSuccessOptix) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials or login failed\"}";
+                    }
+
+                    System.out.println("✅ Optix login successful, fetching API...");
+
+                    // 🔥 HIT API
+                    String apiUrlOptix = url + "/Ajax_Request/get_users_json";
+
+                    String rawJsonOptix;
+
+                    try {
+                        js = (JavascriptExecutor) driver;
+
+                        rawJsonOptix = (String) js.executeScript(
+                                "return fetch(arguments[0], {credentials: 'include'})" +
+                                        ".then(res => res.text())" +
+                                        ".then(data => data);",
+                                apiUrlOptix
+                        );
+
+                        System.out.println("📦 Raw JSON received");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Failed to fetch API data\"}";
+                    }
+
+                    // ❌ EMPTY OR INVALID RESPONSE
+                    if (rawJsonOptix == null || rawJsonOptix.trim().isEmpty()) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Empty API response\"}";
+                    }
+
+                    JSONObject responseOptix;
+                    JSONArray dataOptix;
+
+                    try {
+                        responseOptix = new JSONObject(rawJsonOptix);
+                        dataOptix = responseOptix.getJSONArray("data");
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Invalid JSON format from API\"}";
+                    }
+
+                    JSONArray finalArrayOptix = new JSONArray();
+
+                    // 🔄 LOOP DATA
+                    for (int i = 0; i < dataOptix.length(); i++) {
+
+                        JSONObject row = dataOptix.getJSONObject(i);
+                        JSONObject obj = new JSONObject();
+
+                        try {
+
+                            // 🧹 CLEAN HTML FIELDS
+                            String rawName = row.optString("user_full_name", "");
+
+                            String name = "";
+                            Matcher matcher = Pattern.compile("<h6[^>]*>(.*?)</h6>").matcher(rawName);
+                            if (matcher.find()) {
+                                name = matcher.group(1).trim();
+                            }
+
+                            if (name.isEmpty()) {
+                                name = rawName.replaceAll("<.*?>", "").trim();
+                            }
+
+                            String address = row.optString("address", "").replaceAll("<.*?>", "").trim();
+                            String pkg = row.optString("package_name", "");
+                            String expiry = row.optString("user_expiry_view", "").replaceAll("<.*?>", "").trim();
+                            String seller = row.optString("seller_name", "");
+
+                            String usernameVal = row.optString("username", "");
+                            String mobile = row.optString("mobile", "");
+                            String nic = row.optString("nic", "");
+                            String regDate = row.optString("reg_date", "");
+                            String statusRaw = row.optString("status", "");
+
+                            // 🎯 STATUS MAPPING (same as fiberish)
+                            String status = switch (statusRaw) {
+                                case "1" -> "0";
+                                case "2" -> "1";
+                                default -> statusRaw;
+                            };
+
+                            // 🎯 FINAL FORMAT
+                            obj.put("int_id", usernameVal);
+                            obj.put("name", name);
+                            obj.put("manager", seller);
+                            obj.put("cnic", nic);
+                            obj.put("adrs", address);
+                            obj.put("status", status);
+                            obj.put("mob", mobile);
+                            obj.put("reg", regDate);
+                            obj.put("package", pkg);
+                            obj.put("rech_dt", "");
+                            obj.put("exp_dt", expiry);
+
+                            finalArrayOptix.put(obj);
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Error parsing row index: " + i);
+                        }
+                    }
+
+                    driver.quit();
+
+                    if (finalArrayOptix.length() == 0) {
+                        return "{\"status\":\"error\",\"message\":\"No data found in API\"}";
+                    }
+
+                    System.out.println("✅ Optix data extraction complete");
+
+                    return finalArrayOptix.toString();
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -748,7 +749,7 @@ public class AutomationService {
 
                     System.out.println("✅ Login successful, continuing...");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait3 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     try {
                         List<WebElement> closeBtns = driver.findElements(
@@ -771,11 +772,10 @@ public class AutomationService {
                         System.out.println("⚠️ Error while closing popup, skipping...");
                     }
 
-                    // 📄 Navigate to report page
                     // 📄 Navigate to users page
                     driver.get(url + "#/users/index");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait3 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     wait3.until(ExpectedConditions.urlContains("users"));
                     System.out.println("📄 Navigated to users page");
@@ -843,21 +843,21 @@ public class AutomationService {
                         String address = cols.get(23).getText().trim();
                         String cnic = cols.get(27).getText().trim();
 
-                        LocalDate today = LocalDate.now();
+                        LocalDateTime now = LocalDateTime.now();
 
                         // 🧠 Parse expiry date (adjust format if needed)
-                        LocalDate expiryDate = null;
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                        LocalDateTime expiryDateTime = null;
 
                         try {
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                            expiryDate = LocalDate.parse(expiry, formatter);
+                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
                         } catch (DateTimeParseException e) {
                             System.out.println("⚠️ Invalid date format: " + expiry);
                         }
 
                         String status3 = "0"; // default expired
 
-                        if (expiryDate != null && (expiryDate.isEqual(today) || expiryDate.isAfter(today))) {
+                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
                             status3 = "1"; // active
                         }
 
@@ -1265,20 +1265,6 @@ public class AutomationService {
 
                     WebDriverWait wait6 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-                    String downloadDir6 = System.getProperty("user.home") + "\\Downloads";
-
-                    // 🧹 Delete old file if exists
-                    String[] targetFiles6 = {"sas4_export.xlsx"};
-
-                    // 🧹 Delete old files BEFORE
-                    for (String fileName : targetFiles6) {
-                        File f = new File(downloadDir6, fileName);
-                        if (f.exists()) {
-                            f.delete();
-                            System.out.println("🧹 Deleted old file: " + fileName);
-                        }
-                    }
-
                     System.out.println("🚀 Opening Wancom...");
 
                     driver.get(url);
@@ -1317,126 +1303,116 @@ public class AutomationService {
 
                     System.out.println("✅ Login successful, continuing...");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     // 📄 Navigate to report page
-                    driver.get(url + "#/report/activations");
+                    driver.get(url + "#/users/index");
+
+                    wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait6.until(ExpectedConditions.urlContains("users"));
+                    System.out.println("📄 Navigated to users page");
 
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    wait6.until(ExpectedConditions.urlContains("activations"));
-                    System.out.println("📄 Navigated to activations report");
+                    wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
+                    ));
 
-                    // 📥 Click Export Button
-                    WebElement exportBtn = wait6.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
-                            )
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", columnMenuBtn);
+                    System.out.println("📊 Column menu opened");
+
+                    Thread.sleep(1000);
+
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.cssSelector("div.p-overlaypanel-content")
+                    ));
+
+                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
+
+                    try {
+                        WebElement rows500 = wait6.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//a[normalize-space()='500']")
+                        ));
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+
+                        System.out.println("✅ Selected 500 rows");
+
+                        Thread.sleep(3000); // wait for table reload
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Could not select 500 rows");
+                    }
+
+                    wait6.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//table//tbody/tr")
+                    ));
+
+                    rows = driver.findElements(
+                            By.xpath("//table//tbody/tr")
                     );
 
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+                    jsonArray = new JSONArray();
 
-                    System.out.println("📥 Export button clicked");
+                    for (WebElement row : rows) {
 
-                    // ⏳ WAIT FOR DOWNLOAD
-                    File latestFile6 = null;
-                    int waitTime6 = 0;
+                        List<WebElement> cols = row.findElements(By.tagName("td"));
 
-                    while (waitTime6 < 20) {
-                        for (String fileName : targetFiles6) {
-                            File f = new File(downloadDir6, fileName);
-                            latestFile6 = null;
-                            waitTime6 = 0;
+                        if (cols.size() < 30) continue; // adjust based on actual table
 
-                            while (waitTime6 < 30) {
+                        // ⚠️ Adjust indexes based on actual UI
+//                        String status = cols.get(2).getText().trim();
+                        String username6 = cols.get(4).getText().trim();
+                        String firstName = cols.get(5).getText().trim();
+                        String lastName = cols.get(6).getText().trim();
+                        String expiry = cols.get(7).getText().trim();
+                        String parent = cols.get(8).getText().trim();
+                        String profile = cols.get(9).getText().trim();
+                        String phone = cols.get(22).getText().trim();
+                        String address = cols.get(23).getText().trim();
+                        String cnic = cols.get(27).getText().trim();
 
-                                for (String targetName : targetFiles6) {
+                        LocalDateTime now = LocalDateTime.now();
 
-                                    f = new File(downloadDir6, targetName);
+                        // 🧠 Parse expiry date (adjust format if needed)
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                        LocalDateTime expiryDateTime = null;
 
-                                    // ❌ Ignore temp downloading files
-                                    if (f.getName().endsWith(".part") || f.getName().endsWith(".crdownload")) {
-                                        continue;
-                                    }
-
-                                    if (f.exists() && f.length() > 0) {
-
-                                        // 🧠 Check if file writing is finished
-                                        long size1 = f.length();
-                                        Thread.sleep(1000);
-                                        long size2 = f.length();
-
-                                        if (size1 == size2) {
-                                            latestFile6 = f;
-                                            System.out.println("✅ File fully downloaded: " + targetName);
-                                            break;
-                                        } else {
-                                            System.out.println("⏳ File still downloading...");
-                                        }
-                                    }
-                                }
-
-                                if (latestFile6 != null) break;
-
-                                Thread.sleep(1000);
-                                waitTime6++;
-                            }
+                        try {
+                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
+                        } catch (DateTimeParseException e) {
+                            System.out.println("⚠️ Invalid date format: " + expiry);
                         }
-                        if (latestFile6 != null) break;
 
-                        Thread.sleep(1000);
-                        waitTime6++;
-                    }
+                        String status6 = "0"; // default expired
 
-                    if (latestFile6 == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
-                    }
-
-                    // 📊 CONVERT EXCEL → JSON
-                    FileInputStream fis6 = new FileInputStream(latestFile6);
-                    XSSFWorkbook workbook6 = new XSSFWorkbook(fis6);
-                    XSSFSheet sheet6 = workbook6.getSheetAt(0);
-
-                    JSONArray jsonArray6 = new JSONArray();
-
-                    for (int i = 1; i <= sheet6.getLastRowNum(); i++) {
-
-                        if (sheet6.getRow(i) == null) continue;
+                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
+                            status6 = "1"; // active
+                        }
 
                         JSONObject obj = new JSONObject();
-                        obj.put("int_id", getCellValue(sheet6, i, 2));
-                        String firstName = String.valueOf(getCellValue(sheet6, i, 3)).trim();
-                        String lastName = String.valueOf(getCellValue(sheet6, i, 4)).trim();
-                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
-//                        obj.put("name", fullName);
-                        obj.put("manager", getCellValue(sheet6, i, 5));
-                        obj.put("cnic", "");
-                        obj.put("adrs", "");
-                        obj.put("status", "");
-                        obj.put("mob", "");
+
+                        obj.put("int_id", username6);
+                        obj.put("name", (firstName + " " + lastName).trim());
+                        obj.put("manager", parent);
+                        obj.put("cnic", cnic);
+                        obj.put("adrs", address);
+                        obj.put("status", status6);
+                        obj.put("mob", phone);
                         obj.put("reg", "");
-                        obj.put("package", getCellValue(sheet6, i, 8));
+                        obj.put("package", profile);
                         obj.put("rech_dt", "");
-                        obj.put("exp_dt", getCellValue(sheet6, i, 10));
+                        obj.put("exp_dt", expiry);
 
-                        jsonArray6.put(obj);
+                        jsonArray.put(obj);
                     }
 
-                    workbook6.close();
-                    fis6.close();
-
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    // 🗑️ DELETE FILE
-                    if (latestFile6.exists()) {
-                        latestFile6.delete();
-                        System.out.println("🗑️ Wancom file deleted");
-                        System.out.println("The End");
-                    }
-
-                    return jsonArray6.toString();
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users");
+                    return jsonArray.toString();
 
                 case "mak_net":
 
@@ -1528,7 +1504,7 @@ public class AutomationService {
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     // 📥 Click Export Button
-                    exportBtn = wait7.until(
+                    WebElement exportBtn = wait7.until(
                             ExpectedConditions.elementToBeClickable(
                                     By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
                             )

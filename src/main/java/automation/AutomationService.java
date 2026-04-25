@@ -1470,116 +1470,135 @@ public class AutomationService {
 
                     System.out.println("✅ Login successful, continuing...");
 
+                    try {
+                        WebDriverWait popupWait = new WebDriverWait(driver, Duration.ofSeconds(5));
+
+                        WebElement closeBtn = popupWait.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        ));
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        System.out.println("❌ Popup closed");
+
+                        // optional small wait to let UI settle
+                        Thread.sleep(1000);
+
+                    } catch (TimeoutException e) {
+                        System.out.println("ℹ️ No popup found, continuing...");
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Tried closing popup but failed, continuing...");
+                    }
+
+                    wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    driver.get(url + "#/users/index");
+
+                    wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait7.until(ExpectedConditions.urlContains("users"));
+                    System.out.println("📄 Navigated to users page");
+
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
+                    ));
+
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", columnMenuBtn);
+                    System.out.println("📊 Column menu opened");
+
+                    Thread.sleep(1000);
+
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.cssSelector("div.p-overlaypanel-content")
+                    ));
+
+                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
 
                     try {
-                        List<WebElement> closeBtns = driver.findElements(
-                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
-                        );
+                        WebElement rows500 = wait7.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//a[normalize-space()='500']")
+                        ));
 
-                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
 
-                            System.out.println("✅ Close popup found, clicking...");
+                        System.out.println("✅ Selected 500 rows");
 
-                            WebElement closeBtn = closeBtns.get(0);
-
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
-
-                        } else {
-                            System.out.println("⚠️ Popup not present, skipping...");
-                        }
-
+                        Thread.sleep(3000); // wait for table reload
                     } catch (Exception e) {
-                        System.out.println("⚠️ Error while closing popup, skipping...");
+                        System.out.println("⚠️ Could not select 500 rows");
                     }
 
-                    // 📄 Navigate to report page
-                    driver.get(url + "#/report/activations");
+                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.xpath("//table//tbody/tr")
+                    ));
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    wait7.until(ExpectedConditions.urlContains("activations"));
-                    System.out.println("📄 Navigated to activations report");
-
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    // 📥 Click Export Button
-                    WebElement exportBtn = wait7.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
-                            )
+                    rows = driver.findElements(
+                            By.xpath("//table//tbody/tr")
                     );
 
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+                    jsonArray = new JSONArray();
 
-                    System.out.println("📥 Export button clicked");
+                    for (WebElement row : rows) {
 
-                    // ⏳ WAIT FOR DOWNLOAD
-                    File latestFile7 = null;
-                    int waitTime7 = 0;
+                        List<WebElement> cols = row.findElements(By.tagName("td"));
 
-                    while (waitTime7 < 20) {
-                        for (String fileName : targetFiles7) {
-                            File f = new File(downloadDir7, fileName);
-                            if (f.exists()) {
-                                latestFile7 = f;
-                                System.out.println("✅ Found file: " + fileName);
-                                break;
-                            }
+                        if (cols.size() < 30) continue; // adjust based on actual table
+
+                        // ⚠️ Adjust indexes based on actual UI
+//                        String status = cols.get(2).getText().trim();
+                        String username7 = cols.get(4).getText().trim();
+                        String firstName = cols.get(5).getText().trim();
+                        String lastName = cols.get(6).getText().trim();
+                        String expiry = cols.get(7).getText().trim();
+                        String parent = cols.get(8).getText().trim();
+                        String profile = cols.get(9).getText().trim();
+                        String phone = cols.get(22).getText().trim();
+                        String address = cols.get(23).getText().trim();
+                        String cnic = cols.get(27).getText().trim();
+
+                        LocalDateTime now = LocalDateTime.now();
+
+                        // 🧠 Parse expiry date (adjust format if needed)
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                        LocalDateTime expiryDateTime = null;
+
+                        try {
+                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
+                        } catch (DateTimeParseException e) {
+                            System.out.println("⚠️ Invalid date format: " + expiry);
                         }
-                        if (latestFile7 != null) break;
 
-                        Thread.sleep(1000);
-                        waitTime7++;
-                    }
+                        String status7 = "0"; // default expired
 
-                    if (latestFile7 == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
-                    }
-
-                    // 📊 CONVERT EXCEL → JSON
-                    FileInputStream fis7 = new FileInputStream(latestFile7);
-                    XSSFWorkbook workbook7 = new XSSFWorkbook(fis7);
-                    XSSFSheet sheet7 = workbook7.getSheetAt(0);
-
-                    JSONArray jsonArray7 = new JSONArray();
-
-                    for (int i = 1; i <= sheet7.getLastRowNum(); i++) {
-
-                        if (sheet7.getRow(i) == null) continue;
+                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
+                            status7 = "1"; // active
+                        }
 
                         JSONObject obj = new JSONObject();
-                        obj.put("int_id", getCellValue(sheet7, i, 2));
-                        String firstName = String.valueOf(getCellValue(sheet7, i, 3)).trim();
-                        String lastName = String.valueOf(getCellValue(sheet7, i, 4)).trim();
-                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
-//                        obj.put("name", fullName);
-                        obj.put("manager", getCellValue(sheet7, i, 5));
-                        obj.put("cnic", "");
-                        obj.put("adrs", "");
-                        obj.put("status", "");
-                        obj.put("mob", "");
+
+                        obj.put("int_id", username7);
+                        obj.put("name", (firstName + " " + lastName).trim());
+                        obj.put("manager", parent);
+                        obj.put("cnic", cnic);
+                        obj.put("adrs", address);
+                        obj.put("status", status7);
+                        obj.put("mob", phone);
                         obj.put("reg", "");
-                        obj.put("package", getCellValue(sheet7, i, 8));
+                        obj.put("package", profile);
                         obj.put("rech_dt", "");
-                        obj.put("exp_dt", getCellValue(sheet7, i, 10));
+                        obj.put("exp_dt", expiry);
 
-                        jsonArray7.put(obj);
+                        jsonArray.put(obj);
                     }
 
-                    workbook7.close();
-                    fis7.close();
-
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    // 🗑️ DELETE FILE
-                    if (latestFile7.exists()) {
-                        latestFile7.delete();
-                        System.out.println("🗑️ Maknet file deleted");
-                        System.out.println("The End");
-                    }
-
-                    return jsonArray7.toString();
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users");
+                    return jsonArray.toString();
 
                 case "daddy_sas":
 
@@ -2059,7 +2078,7 @@ public class AutomationService {
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     // 📥 Click Export Button
-                    exportBtn = wait10.until(
+                    WebElement exportBtn = wait10.until(
                             ExpectedConditions.elementToBeClickable(
                                     By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
                             )

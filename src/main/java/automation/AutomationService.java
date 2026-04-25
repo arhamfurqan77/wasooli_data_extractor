@@ -2896,20 +2896,6 @@ public class AutomationService {
 
                     WebDriverWait wait14 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-                    String downloadDir14 = System.getProperty("user.home") + "\\Downloads";
-
-                    // 🧹 Delete old file if exists
-                    String[] targetFiles14 = {"sas4_export.xlsx"};
-
-                    // 🧹 Delete old files BEFORE
-                    for (String fileName : targetFiles14) {
-                        File f = new File(downloadDir14, fileName);
-                        if (f.exists()) {
-                            f.delete();
-                            System.out.println("🧹 Deleted old file: " + fileName);
-                        }
-                    }
-
                     System.out.println("🚀 Opening Wellnet...");
 
                     driver.get(url);
@@ -2948,116 +2934,158 @@ public class AutomationService {
 
                     System.out.println("✅ Login successful, continuing...");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait14 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    try {
-                        List<WebElement> closeBtns = driver.findElements(
-                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
-                        );
-
-                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
-
-                            System.out.println("✅ Close popup found, clicking...");
-
-                            WebElement closeBtn = closeBtns.get(0);
-
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
-
-                        } else {
-                            System.out.println("⚠️ Popup not present, skipping...");
-                        }
-
-                    } catch (Exception e) {
-                        System.out.println("⚠️ Error while closing popup, skipping...");
-                    }
 
                     // 📄 Navigate to report page
-                    driver.get(url + "#/report/activations");
+                    driver.get(url + "#/users/index");
+
+                    wait14 = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+                    wait14.until(ExpectedConditions.urlContains("users"));
+                    System.out.println("📄 Navigated to users page");
 
                     wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    wait14.until(ExpectedConditions.urlContains("activations"));
-                    System.out.println("📄 Navigated to activations report");
+                    wait14 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
+                    ));
 
-                    // 📥 Click Export Button
-                    exportBtn = wait14.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//a[.//i[contains(@class,'fa-file-export')]]")
-                            )
-                    );
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", columnMenuBtn);
+                    System.out.println("📊 Column menu opened");
 
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+                    Thread.sleep(1000);
 
-                    System.out.println("📥 Export button clicked");
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                            By.cssSelector("div.p-overlaypanel-content")
+                    ));
 
-                    // ⏳ WAIT FOR DOWNLOAD
-                    File latestFile14 = null;
-                    int waitTime14 = 0;
+                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
 
-                    while (waitTime14 < 20) {
-                        for (String fileName : targetFiles14) {
-                            File f = new File(downloadDir14, fileName);
-                            if (f.exists()) {
-                                latestFile14 = f;
-                                System.out.println("✅ Found file: " + fileName);
-                                break;
-                            }
-                        }
-                        if (latestFile14 != null) break;
+
+                    try {
+                        WebElement rows500 = wait14.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
+                        ));
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+
+                        System.out.println("✅ Selected 500 rows");
+
+                        Thread.sleep(10000); // wait for table reload
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Could not select 500 rows");
+                    }
+
+                    jsonArray = new JSONArray(); // ✅ initialize once
+                    int totalUsers = 0;
+
+                    boolean hasNextPage = true;
+
+                    while (hasNextPage) {
+
+                        wait14.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//table//tbody/tr")
+                        ));
+
+                        rows = driver.findElements(By.xpath("//table//tbody/tr"));
+                        int rowCount = rows.size();
+
+                        System.out.println("📄 Processing page with " + rowCount + " rows");
+
+                        wait14.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                                By.xpath("//table//tbody/tr")
+                        ));
 
                         Thread.sleep(1000);
-                        waitTime14++;
+
+                        for (int i = 0; i < rowCount; i++) {
+
+                            // 🔁 Re-fetch row every time (VERY IMPORTANT)
+                            WebElement row = driver.findElements(By.xpath("//table//tbody/tr")).get(i);
+
+                            List<WebElement> cols = row.findElements(By.tagName("td"));
+                            if (cols.size() < 30) continue;
+
+                            String username14 = cols.get(4).getText().trim();
+                            String firstName = cols.get(5).getText().trim();
+                            String lastName = cols.get(6).getText().trim();
+                            String expiry = cols.get(7).getText().trim();
+                            String parent = cols.get(8).getText().trim();
+                            String profile = cols.get(9).getText().trim();
+                            String phone = cols.get(22).getText().trim();
+                            String address = cols.get(23).getText().trim();
+                            String cnic = cols.get(27).getText().trim();
+
+                            LocalDateTime now = LocalDateTime.now();
+
+                            // 🧠 Parse expiry date (adjust format if needed)
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                            LocalDateTime expiryDateTime = null;
+
+                            try {
+                                expiryDateTime = LocalDateTime.parse(expiry, formatter);
+                            } catch (DateTimeParseException e) {
+                                System.out.println("⚠️ Invalid date format: " + expiry);
+                            }
+
+                            String status14 = "0"; // default expired
+
+                            if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
+                                status14 = "1"; // active
+                            }
+
+                            JSONObject obj = new JSONObject();
+
+                            obj.put("int_id", username14);
+                            obj.put("name", (firstName + " " + lastName).trim());
+                            obj.put("manager", parent);
+                            obj.put("cnic", cnic);
+                            obj.put("adrs", address);
+                            obj.put("status", status14);
+                            obj.put("mob", phone);
+                            obj.put("reg", "");
+                            obj.put("package", profile);
+                            obj.put("rech_dt", "");
+                            obj.put("exp_dt", expiry);
+
+                            jsonArray.put(obj);
+                        }
+
+                        totalUsers += rows.size();
+
+                        try {
+                            WebElement nextBtn = driver.findElement(
+                                    By.xpath("//a[@aria-label='Next']/parent::li")
+                            );
+
+                            String classes = nextBtn.getAttribute("class");
+
+                            if (classes.contains("disabled")) {
+                                System.out.println("🚫 No more pages");
+                                hasNextPage = false;
+                            } else {
+                                WebElement nextLink = nextBtn.findElement(By.tagName("a"));
+
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextLink);
+
+                                System.out.println("➡️ Moving to next page");
+
+                                Thread.sleep(3000); // wait for reload
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Next button not found, stopping pagination");
+                            hasNextPage = false;
+                        }
                     }
 
-                    if (latestFile14 == null) {
-                        return "{\"status\":\"error\",\"message\":\"Excel not found\"}";
-                    }
-
-                    // 📊 CONVERT EXCEL → JSON
-                    FileInputStream fis14 = new FileInputStream(latestFile14);
-                    XSSFWorkbook workbook14 = new XSSFWorkbook(fis14);
-                    XSSFSheet sheet14 = workbook14.getSheetAt(0);
-
-                    JSONArray jsonArray14 = new JSONArray();
-
-                    for (int i = 1; i <= sheet14.getLastRowNum(); i++) {
-
-                        if (sheet14.getRow(i) == null) continue;
-
-                        JSONObject obj = new JSONObject();
-                        obj.put("int_id", getCellValue(sheet14, i, 2));
-                        String firstName = String.valueOf(getCellValue(sheet14, i, 3)).trim();
-                        String lastName = String.valueOf(getCellValue(sheet14, i, 4)).trim();
-                        obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
-//                        obj.put("name", fullName);
-                        obj.put("manager", getCellValue(sheet14, i, 5));
-                        obj.put("cnic", "");
-                        obj.put("adrs", "");
-                        obj.put("status", "");
-                        obj.put("mob", "");
-                        obj.put("reg", "");
-                        obj.put("package", getCellValue(sheet14, i, 8));
-                        obj.put("rech_dt", "");
-                        obj.put("exp_dt", getCellValue(sheet14, i, 10));
-
-                        jsonArray14.put(obj);
-                    }
-
-                    workbook14.close();
-                    fis14.close();
-
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    // 🗑️ DELETE FILE
-                    if (latestFile14.exists()) {
-                        latestFile14.delete();
-                        System.out.println("🗑️ Wellnet file deleted");
-                        System.out.println("The End");
-                    }
-
-                    return jsonArray14.toString();
+                    System.out.println("✅ Extracted " + totalUsers + " users");
+                    return jsonArray.toString();
 
                 case "billing_galaxy":
 

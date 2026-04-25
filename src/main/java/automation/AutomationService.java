@@ -10,8 +10,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -25,7 +23,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -3029,6 +3026,240 @@ public class AutomationService {
                     }
 
                     return jsonArray14.toString();
+
+                case "billing_galaxy":
+
+                    WebDriverWait wait15 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir15 = System.getProperty("user.home") + "\\Downloads";
+
+                    String[] targetFiles15 = {"Galaxy Broadband.xlsx"};
+
+                    // 🧹 Delete old file
+                    for (String fileName : targetFiles15) {
+                        File f = new File(downloadDir15, fileName);
+                        if (f.exists()) {
+                            f.delete();
+                            System.out.println("🧹 Deleted old file: " + fileName);
+                        }
+                    }
+
+                    System.out.println("🚀 Opening Galaxy...");
+
+                    try {
+                        driver.get(url);
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Failed to open URL\"}";
+                    }
+
+                    // 🔐 LOGIN
+                    try {
+                        wait15.until(ExpectedConditions.visibilityOfElementLocated(By.id("signInFormUEP")))
+                                .sendKeys(username);
+
+                        driver.findElement(By.id("signInFormPass")).sendKeys(password);
+
+                        wait15.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit' and contains(.,'SUBMIT')]")
+                        )).click();
+
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ Wait after login
+                    Thread.sleep(3000);
+
+                    // ✅ CHECK LOGIN SUCCESS
+                    boolean loginSuccess15 = false;
+
+                    try {
+                        wait15.until(ExpectedConditions.urlContains("/dealer/index.php"));
+                        loginSuccess15 = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess15 = false;
+                    }
+
+                    if (!loginSuccess15) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Galaxy login successful!");
+
+                    // 📄 Navigate to customers page
+                    try {
+                        driver.get(url + "/dealer/list-customers.php?filter=all");
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Failed to open customers page\"}";
+                    }
+
+                    // ⏳ Wait for table
+                    try {
+                        wait15.until(ExpectedConditions.presenceOfElementLocated(By.id("customers_table")));
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Customers table not loaded\"}";
+                    }
+
+                    // ⏳ wait for table to load
+                    wait15.until(ExpectedConditions.presenceOfElementLocated(By.id("customers_table")));
+
+                    // 🚀 STEP 1: Inject new option (1000)
+                    ((JavascriptExecutor) driver).executeScript(
+                            "let select = document.querySelector('select[name=\"customers_table_length\"]');" +
+                                    "let exists = [...select.options].some(o => o.value == '1000');" +
+                                    "if(!exists) {" +
+                                    "   let opt = document.createElement('option');" +
+                                    "   opt.value = '1000';" +
+                                    "   opt.text = '1000';" +
+                                    "   select.appendChild(opt);" +
+                                    "}"
+                    );
+
+                    System.out.println("🧠 Injected 1000 option");
+
+                    // 🚀 STEP 2: Set value to 1000 and trigger change
+                    ((JavascriptExecutor) driver).executeScript(
+                            "let select = document.querySelector('select[name=\"customers_table_length\"]');" +
+                                    "select.value = '1000';" +
+                                    "select.dispatchEvent(new Event('change'));"
+                    );
+
+                    System.out.println("📊 Set entries to 1000");
+
+                    // ⏳ STEP 3: wait for table reload
+                    wait15.until(d ->
+                            d.findElements(By.cssSelector("#customers_table tbody tr")).size() > 50
+                    );
+
+                    // 📥 CLICK EXPORT BUTTON
+                    try {
+                        exportBtn = wait15.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//button[contains(@class,'buttons-collection')]")
+                                )
+                        );
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn);
+                        System.out.println("📤 Export dropdown opened");
+
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Export button not found or not clickable\"}";
+                    }
+
+                    // 📥 CLICK EXCEL OPTION
+                    try {
+                        WebElement excelOption = wait15.until(
+                                ExpectedConditions.elementToBeClickable(
+                                        By.xpath("//li[contains(@class,'buttons-excel')]//a[contains(text(),'Excel')]")
+                                )
+                        );
+
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", excelOption);
+                        System.out.println("📥 Excel option clicked");
+
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Excel option not found in dropdown\"}";
+                    }
+
+                    // ⏳ WAIT FOR DOWNLOAD
+                    File latestFile15 = null;
+                    int waitTime15 = 0;
+
+                    while (waitTime15 < 40) {
+
+                        for (String fileName : targetFiles15) {
+                            File f = new File(downloadDir15, fileName);
+
+                            if (f.exists()) {
+
+                                // ignore partial downloads
+                                if (f.getName().endsWith(".crdownload") || f.getName().endsWith(".part")) {
+                                    continue;
+                                }
+
+                                long size1 = f.length();
+                                Thread.sleep(1000);
+                                long size2 = f.length();
+
+                                if (size1 == size2 && size1 > 0) {
+                                    latestFile15 = f;
+                                    System.out.println("✅ File fully downloaded: " + f.getName());
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (latestFile15 != null) break;
+
+                        Thread.sleep(1000);
+                        waitTime15++;
+                    }
+
+                    if (latestFile15 == null) {
+                        return "{\"status\":\"error\",\"message\":\"Galaxy Excel file not downloaded\"}";
+                    }
+
+                    if (latestFile15.length() < 50) {
+                        return "{\"status\":\"error\",\"message\":\"Downloaded file is empty\"}";
+                    }
+
+                    // 📊 CONVERT EXCEL → JSON
+                    JSONArray jsonArray15 = new JSONArray();
+
+                    try {
+                        FileInputStream fis15 = new FileInputStream(latestFile15);
+                        XSSFWorkbook workbook15 = new XSSFWorkbook(fis15);
+                        XSSFSheet sheet15 = workbook15.getSheetAt(0);
+
+                        for (int i = 2; i <= sheet15.getLastRowNum(); i++) {
+
+                            if (sheet15.getRow(i) == null) continue;
+
+                            JSONObject obj = new JSONObject();
+
+                            String statusRaw = String.valueOf(getCellValue(sheet15, i, 7))
+                                    .trim()
+                                    .toUpperCase();
+
+                            String status = switch (statusRaw) {
+                                case "A" -> "1";
+                                case "E" -> "0";
+                                default -> "";
+                            };
+
+                            obj.put("int_id", getCellValue(sheet15, i, 2));
+                            obj.put("name", getCellValue(sheet15, i, 3));
+                            obj.put("manager", getCellValue(sheet15, i, 21));
+                            obj.put("cnic", "");
+                            obj.put("adrs", getCellValue(sheet15, i, 4));
+                            obj.put("status", status);
+                            obj.put("mob", getCellValue(sheet15, i, 9));
+                            obj.put("reg", "");
+                            obj.put("package", getCellValue(sheet15, i, 6));
+                            obj.put("rech_dt", "");
+                            obj.put("exp_dt", getCellValue(sheet15, i, 5));
+
+                            jsonArray15.put(obj);
+                        }
+
+                        workbook15.close();
+                        fis15.close();
+
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Failed to parse Excel file\"}";
+                    }
+
+                    // 🗑️ DELETE FILE
+                    if (latestFile15.exists()) {
+                        latestFile15.delete();
+                        System.out.println("🗑️ Galaxy Billing file deleted");
+                    }
+
+                    System.out.println("✅ Galaxy Done");
+
+                    return jsonArray15.toString();
 
             }
         } catch (Exception e) {

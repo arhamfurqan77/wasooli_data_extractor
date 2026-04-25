@@ -829,6 +829,57 @@ public class LoginService {
 
                     System.out.println("✅ Login successful");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "billing_galaxy":
+
+                    WebDriverWait wait15 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    String downloadDir15 = System.getProperty("user.home") + "\\Downloads";
+
+                    System.out.println("🚀 Opening Galaxy Billing...");
+
+                    try {
+                        driver.get(url);
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Failed to open URL\"}";
+                    }
+
+                    // 🔐 LOGIN
+                    try {
+                        wait15.until(ExpectedConditions.visibilityOfElementLocated(By.id("signInFormUEP")))
+                                .sendKeys(username);
+
+                        driver.findElement(By.id("signInFormPass")).sendKeys(password);
+
+                        wait15.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit' and contains(.,'SUBMIT')]")
+                        )).click();
+
+                    } catch (Exception e) {
+                        return "{\"status\":\"error\",\"message\":\"Login elements not found\"}";
+                    }
+
+                    // ⏳ Wait after login
+                    Thread.sleep(3000);
+
+                    // ✅ CHECK LOGIN SUCCESS
+                    boolean loginSuccess15 = false;
+
+                    try {
+                        wait15.until(ExpectedConditions.urlContains("/dealer/index.php"));
+                        loginSuccess15 = true;
+                    } catch (TimeoutException e) {
+                        loginSuccess15 = false;
+                    }
+
+                    if (!loginSuccess15) {
+                        driver.quit();
+                        System.out.println("❌ Wrong Login Credentials");
+                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                    }
+
+                    System.out.println("✅ Galaxy login successful!");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -3104,7 +3104,7 @@ public class AutomationService {
                         }
                     }
 
-                    System.out.println("🚀 Opening Galaxy...");
+                    System.out.println("🚀 Opening Galaxy Billing...");
 
                     try {
                         driver.get(url);
@@ -3317,7 +3317,7 @@ public class AutomationService {
                         System.out.println("🗑️ Galaxy Billing file deleted");
                     }
 
-                    System.out.println("✅ Galaxy Done");
+                    System.out.println("✅ Galaxy Billing Done");
 
                     return jsonArray15.toString();
 

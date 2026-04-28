@@ -53,6 +53,7 @@ public class AutomationService {
         try {
             WebElement captchaImg = driver.findElement(By.id("loginform-captcha-image"));
 
+            Thread.sleep(2000);
             // Take screenshot of element
             File src = captchaImg.getScreenshotAs(OutputType.FILE);
             File dest = new File("captcha.png");
@@ -941,6 +942,12 @@ public class AutomationService {
 
                     wait5.until(d -> d.getCurrentUrl().contains("customer/customers"));
                     System.out.println("✅ Customers page loaded");
+
+                    wait5.until(webDriver ->
+                            ((JavascriptExecutor) webDriver)
+                                    .executeScript("return document.readyState")
+                                    .equals("complete")
+                    );
 
                     System.out.println("🔍 Clicking Search button...");
 
@@ -2114,7 +2121,7 @@ public class AutomationService {
                         driver.findElement(By.xpath("//button[@type='submit']")).click();
 
                         // ⏳ Wait after login
-                        Thread.sleep(3000);
+                        Thread.sleep(7000);
 
                         // 🌐 Get current URL
                         currentUrl11 = driver.getCurrentUrl();
@@ -2169,6 +2176,9 @@ public class AutomationService {
                     System.out.println("📄 Navigating to customers page...");
                     driver.get(url + "/customer/customers");
 
+                    wait11.until(d -> d.getCurrentUrl().contains("customer/customers"));
+                    System.out.println("✅ Customers page loaded");
+
                     wait11.until(webDriver ->
                             ((JavascriptExecutor) webDriver)
                                     .executeScript("return document.readyState")
@@ -2177,34 +2187,29 @@ public class AutomationService {
 
                     System.out.println("🔍 Clicking Search button...");
 
-                    WebElement searchBtn11 = wait11.until(
-                            ExpectedConditions.visibilityOfElementLocated(By.id("btnSubmit"))
-                    );
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn11);
-
-                    Thread.sleep(1000);
-
                     try {
-                        searchBtn11.click();
-                    } catch (Exception e) {
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn11);
+                        wait11.until(ExpectedConditions.elementToBeClickable(By.id("btnSubmit"))).click();
+                    } catch (StaleElementReferenceException e) {
+                        System.out.println("♻️ Retrying search click");
+                        wait11.until(ExpectedConditions.elementToBeClickable(By.id("btnSubmit"))).click();
                     }
+
+                    System.out.println("✅ Search clicked");
 
                     System.out.println("🔍 Search clicked");
 
                     Thread.sleep(4000);
 
-                    WebElement exportBtn11 = wait11.until(
-                            ExpectedConditions.visibilityOfElementLocated(By.id("btnExport"))
-                    );
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", exportBtn11);
+                    wait11.until(ExpectedConditions.elementToBeClickable(By.id("btnExport")));
 
-                    Thread.sleep(1000);
+                    // 📥 Click Export
+                    System.out.println("📥 Clicking Export button...");
 
                     try {
-                        exportBtn11.click();
-                    } catch (Exception e) {
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn11);
+                        wait11.until(ExpectedConditions.elementToBeClickable(By.id("btnExport"))).click();
+                    } catch (StaleElementReferenceException e) {
+                        System.out.println("♻️ Retrying export click");
+                        wait11.until(ExpectedConditions.elementToBeClickable(By.id("btnExport"))).click();
                     }
 
                     System.out.println("📥 Export button clicked");
@@ -2233,7 +2238,7 @@ public class AutomationService {
                                     long size2 = f.length();
 
                                     if (size1 == size2) {
-                                        latestFile5 = f;
+                                        latestFile11 = f;
                                         System.out.println("✅ File fully downloaded: " + f.getName());
                                         break;
                                     }
@@ -2386,16 +2391,7 @@ public class AutomationService {
                             // 🧹 CLEAN HTML FIELDS
                             String rawName = row.optString("user_full_name", "");
 
-                            String name = "";
-                            Matcher matcher = Pattern.compile("<h6[^>]*>(.*?)</h6>").matcher(rawName);
-                            if (matcher.find()) {
-                                name = matcher.group(1).trim();
-                            }
-
-                            if (name.isEmpty()) {
-                                name = rawName.replaceAll("<.*?>", "").trim();
-                            }
-
+                            String name = row.optString("name", "");
                             String address = row.optString("address", "").replaceAll("<.*?>", "").trim();
                             String pkg = row.optString("package_name", "");
                             String expiry = row.optString("user_expiry_view", "").replaceAll("<.*?>", "").trim();
@@ -2464,7 +2460,7 @@ public class AutomationService {
                         }
                     }
 
-                    System.out.println("🚀 Opening Alfa Broadband...");
+                    System.out.println("🚀 Opening C Xtreme portal...");
 
                     maxAttempts = 3;
                     loginSuccess = false;
@@ -2509,7 +2505,7 @@ public class AutomationService {
                         driver.findElement(By.xpath("//button[@type='submit']")).click();
 
                         // ⏳ Wait after login
-                        Thread.sleep(3000);
+                        Thread.sleep(7000);
 
                         // 🌐 Get current URL
                         currentUrl13 = driver.getCurrentUrl();
@@ -2549,7 +2545,7 @@ public class AutomationService {
                     }
 
                     // ✅ LOGIN SUCCESS
-                    System.out.println("✅ Alfa Broadband login successful!");
+                    System.out.println("✅ CXtreme login successful!");
 
                     // ❌ Close popup if appears
                     try {
@@ -2564,6 +2560,9 @@ public class AutomationService {
                     System.out.println("📄 Navigating to customers page...");
                     driver.get(url + "/customer/customers");
 
+                    wait13.until(d -> d.getCurrentUrl().contains("customer/customers"));
+                    System.out.println("✅ Customers page loaded");
+
                     wait13.until(webDriver ->
                             ((JavascriptExecutor) webDriver)
                                     .executeScript("return document.readyState")
@@ -2572,34 +2571,29 @@ public class AutomationService {
 
                     System.out.println("🔍 Clicking Search button...");
 
-                    WebElement searchBtn13 = wait13.until(
-                            ExpectedConditions.visibilityOfElementLocated(By.id("btnSubmit"))
-                    );
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn13);
-
-                    Thread.sleep(1000);
-
                     try {
-                        searchBtn13.click();
-                    } catch (Exception e) {
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn13);
+                        wait13.until(ExpectedConditions.elementToBeClickable(By.id("btnSubmit"))).click();
+                    } catch (StaleElementReferenceException e) {
+                        System.out.println("♻️ Retrying search click");
+                        wait13.until(ExpectedConditions.elementToBeClickable(By.id("btnSubmit"))).click();
                     }
+
+                    System.out.println("✅ Search clicked");
 
                     System.out.println("🔍 Search clicked");
 
                     Thread.sleep(4000);
 
-                    WebElement exportBtn13 = wait13.until(
-                            ExpectedConditions.visibilityOfElementLocated(By.id("btnExport"))
-                    );
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", exportBtn13);
+                    wait13.until(ExpectedConditions.elementToBeClickable(By.id("btnExport")));
 
-                    Thread.sleep(1000);
+                    // 📥 Click Export
+                    System.out.println("📥 Clicking Export button...");
 
                     try {
-                        exportBtn13.click();
-                    } catch (Exception e) {
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", exportBtn13);
+                        wait13.until(ExpectedConditions.elementToBeClickable(By.id("btnExport"))).click();
+                    } catch (StaleElementReferenceException e) {
+                        System.out.println("♻️ Retrying export click");
+                        wait13.until(ExpectedConditions.elementToBeClickable(By.id("btnExport"))).click();
                     }
 
                     System.out.println("📥 Export button clicked");
@@ -2681,7 +2675,7 @@ public class AutomationService {
                     // 🗑️ DELETE FILE
                     if (latestFile13.exists()) {
                         latestFile13.delete();
-                        System.out.println("🗑️ Alfa Broadband customer list file deleted");
+                        System.out.println("🗑️ CXtreme Broadband customer list file deleted");
                     }
 
                     System.out.println("✅ Done");
@@ -3122,11 +3116,185 @@ public class AutomationService {
                     System.out.println("✅ Galaxy Billing Done");
 
                     return jsonArray15.toString();
+
+
+                case "connect1":
+
+                    try {
+                        WebDriverWait wait66 = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                        // ✅ Dynamic dates
+                        LocalDate now66 = LocalDate.now();
+                        String fromDate66 = now66.withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        String toDate66 = now66.withDayOfMonth(now66.lengthOfMonth()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+                        System.out.println("🚀 Opening Connect...");
+                        driver.get(url + "login/");
+
+                        // 🔐 LOGIN
+                        waitForElement(driver, wait66,
+                                By.cssSelector("input[type='text'].form-control"),
+                                "Username Input"
+                        ).sendKeys(username);
+
+                        waitForElement(driver, wait66,
+                                By.cssSelector("input[type='password'].form-control"),
+                                "Password Input"
+                        ).sendKeys(password);
+
+                        waitForClickable(driver, wait66,
+                                By.xpath("//button[@type='submit' and contains(@class,'btn-submit')]"),
+                                "Login Button"
+                        ).click();
+
+                        // ⏳ Wait after login click
+                        Thread.sleep(2000);
+
+                        // ⏳ Wait for redirect after login
+                        loginSuccess = false;
+
+                        try {
+                            wait66.until(ExpectedConditions.urlContains("/dashboard"));
+                            loginSuccess = true;
+                        } catch (
+                                TimeoutException e) {
+                            loginSuccess = false;
+                        }
+
+                        // ❌ If login failed → stop execution
+                        if (!loginSuccess) {
+                            driver.quit();
+                            System.out.println("❌ Wrong Login Credentials");
+                            System.out.println("The End");
+                            return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        }
+
+                        System.out.println("✅ Login successful, continuing...");
+
+                        Thread.sleep(5000);
+
+                        try {
+                            WebElement closeBtn = wait66.until(ExpectedConditions.elementToBeClickable(
+                                    By.cssSelector("button.btn-close.ajax-source")
+                            ));
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+                            System.out.println("✅ Notice modal closed");
+                            Thread.sleep(1000);
+                        } catch (TimeoutException e) {
+                            System.out.println("⚠️ No notice modal appeared, continuing...");
+                        }
+
+                        // 📄 Navigate to recharge logs
+                        driver.get(url + "customers/report/recharge-logs");
+
+                        WebElement dateRangeInput66 = waitForClickable(driver, wait66,
+                                By.name("daterange"),
+                                "Date Range Input"
+                        );
+
+                        // Click first (important)
+                        dateRangeInput66.click();
+                        Thread.sleep(500);
+
+                        // Clear and type
+                        dateRangeInput66.sendKeys(Keys.CONTROL + "a");
+                        dateRangeInput66.sendKeys(Keys.DELETE);
+
+                        dateRangeInput66.sendKeys(fromDate66 + " - " + toDate66);
+                        dateRangeInput66.sendKeys(Keys.ENTER);
+
+                        System.out.println("✅ Date range entered manually");
+
+                        Thread.sleep(1000);
+
+                        // 🔍 Click Search
+                        WebElement searchBtn66 = waitForClickable(driver, wait66,
+                                By.xpath("//input[@type='submit' and @value='Search']"),
+                                "Search Button"
+                        );
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn66);
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn66);
+
+                        System.out.println("🔍 Search clicked. Waiting for table...");
+                        Thread.sleep(3000);
+
+                        // 📊 Extract table rows
+                        wait66.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//div[@class='table-responsive']//tbody/tr")
+                        ));
+
+                        java.util.List<WebElement> rows66 = driver.findElements(
+                                By.xpath("//div[@class='table-responsive']//tbody/tr")
+                        );
+
+                        JSONArray jsonArray66 = new JSONArray();
+
+                        for (WebElement row : rows66) {
+                            java.util.List<WebElement> cols = row.findElements(By.tagName("td"));
+                            if (cols.size() < 6) {
+                                throw new RuntimeException("UI CHANGE DETECTED: Table structure changed. Expected >=6 columns but found " + cols.size());
+                            }
+                            // Table columns (0-indexed):
+                            // 0: S.No | 1: User Name | 2: Franchise | 3: By | 4: Date/Time | 5: Package
+
+                            String userName = cols.get(1).getText().trim();
+                            String by = cols.get(3).getText().trim();
+                            String pkg = cols.get(5).getText().trim();
+                            String dateTime = cols.get(4).getText().trim();
+
+
+                            JSONObject obj = new JSONObject();
+                            obj.put("int_id", userName);
+                            obj.put("name", by);
+                            obj.put("manager", "");
+                            obj.put("cnic", "");
+                            obj.put("adrs", "");
+                            obj.put("status", "");
+                            obj.put("mob", "");
+                            obj.put("reg", "");
+                            obj.put("package", pkg);
+                            obj.put("rech_dt", dateTime);
+                            obj.put("exp_dt", "");
+
+
+                            jsonArray66.put(obj);
+                        }
+
+
+                        System.out.println("✅ Extracted " + jsonArray66.length() + " rows from Connect.");
+                        return jsonArray66.toString();
+                    } catch (Exception e) {
+                        driver.quit();
+
+                        System.out.println("❌ ERROR: " + e.getMessage());
+
+                        JSONObject error = new JSONObject();
+                        error.put("status", "error");
+                        error.put("message", e.getMessage());
+
+                        return error.toString();
+                    }
             }
         } catch (Exception e) {
             e.printStackTrace();
             return "{\"status\":\"error\",\"message\":\"Something went wrong\"}";
         }
         return "{\"status\":\"error\",\"message\":\"Something went wrong\"}";
+    }
+
+    private static WebElement waitForElement(WebDriver driver, WebDriverWait wait, By locator, String elementName) {
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
+        } catch (TimeoutException e) {
+            throw new RuntimeException("UI CHANGE DETECTED: Element not found -> " + elementName + " | Locator: " + locator);
+        }
+    }
+
+    private static WebElement waitForClickable(WebDriver driver, WebDriverWait wait, By locator, String elementName) {
+        try {
+            return wait.until(ExpectedConditions.elementToBeClickable(locator));
+        } catch (TimeoutException e) {
+            throw new RuntimeException("UI CHANGE DETECTED: Element not clickable -> " + elementName + " | Locator: " + locator);
+        }
     }
 }

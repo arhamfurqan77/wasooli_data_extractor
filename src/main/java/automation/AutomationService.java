@@ -8,10 +8,10 @@ import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -31,12 +31,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Comparator;
+import java.util.*;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 
 public class AutomationService {
@@ -713,7 +715,7 @@ public class AutomationService {
                         )).click();
 
                         // ⏳ Wait after login click
-                        Thread.sleep(2000);
+                        Thread.sleep(1000);
 
                         // ⏳ Wait for redirect after login
                         loginSuccess = false;
@@ -741,7 +743,7 @@ public class AutomationService {
                                 + e.getMessage().replace("\"", "'") + "\"}";
                     }
 
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
 
                     try {
                         WebElement closeBtn = wait4.until(ExpectedConditions.elementToBeClickable(
@@ -818,56 +820,91 @@ public class AutomationService {
                                 By.xpath("//tbody/tr")
                         ));
 
-                        rows = wait4.until(
-                                ExpectedConditions.visibilityOfAllElementsLocatedBy(By.xpath("//tbody/tr"))
-                        );
-
-                        if (driver.getWindowHandles().size() < 1) {
-                            throw new Exception("Window lost before extraction");
-                        }
+                        wait4.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//tbody/tr")
+                        ));
 
                         String tableHtml = (String) ((JavascriptExecutor) driver)
                                 .executeScript("return document.querySelector('tbody').innerHTML;");
 
-                        JSONArray jsonArray4 = new JSONArray();
-
-                        // Parse with regex or simple string splitting
+                        // Split rows first
                         String[] rowBlocks = tableHtml.split("<tr>");
 
+                        // Filter out empty rows upfront
+                        List<String> validRows = new ArrayList<>();
                         for (String row : rowBlocks) {
-                            if (row.trim().isEmpty()) continue;
+                            if (!row.trim().isEmpty()) validRows.add(row);
+                        }
 
-                            String[] cols = row.split("<td[^>]*>");
-                            if (cols.length < 11) continue;
+                        int totalRows = validRows.size();
+                        int chunkSize = 1000;
+                        int numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
-                            String pkg = stripTags(cols[2]);
-                            String statusText = stripTags(cols[3]);
-                            String status = statusText.equalsIgnoreCase("Active") ? "1" : "0";
-                            String userName = stripTags(cols[4]);
-                            String name = stripTags(cols[5]);
-                            String mobile = stripTags(cols[6]);
-                            String cnic = stripTags(cols[7]);
-                            String address1 = stripTags(cols[8]);
-                            String address2 = stripTags(cols[9]);
-                            String address = (address1 + " " + address2).trim();
-                            String expiry = stripTags(cols[10]);
-                            String addedOn = cols.length > 11 ? stripTags(cols[11]) : "";
+                        System.out.println("📊 Total rows: " + totalRows + " | Threads: " + numThreads);
 
-                            if (userName.isEmpty()) continue;
+                        // Thread-safe list to collect results
+                        List<JSONObject> resultList = Collections.synchronizedList(new ArrayList<>());
 
-                            JSONObject obj = new JSONObject();
-                            obj.put("int_id", userName);
-                            obj.put("name", name);
-                            obj.put("manager", "");
-                            obj.put("cnic", cnic);
-                            obj.put("adrs", address);
-                            obj.put("status", status);
-                            obj.put("mob", mobile);
-                            obj.put("reg", addedOn);
-                            obj.put("package", pkg);
-                            obj.put("rech_dt", "");
-                            obj.put("exp_dt", expiry);
+                        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+                        List<Future<?>> futures = new ArrayList<>();
 
+                        for (int t = 0; t < numThreads; t++) {
+                            int start = t * chunkSize;
+                            int end = Math.min(start + chunkSize, totalRows);
+                            List<String> chunk = validRows.subList(start, end);
+
+                            futures.add(executor.submit(() -> {
+                                for (String row : chunk) {
+                                    try {
+                                        String[] cols = row.split("<td[^>]*>");
+                                        if (cols.length < 11) continue;
+
+                                        String pkg = stripTags(cols[2]);
+                                        String statusText = stripTags(cols[3]);
+                                        String status = statusText.equalsIgnoreCase("Active") ? "1" : "0";
+                                        String userName = stripTags(cols[4]);
+                                        String name = stripTags(cols[5]);
+                                        String mobile = stripTags(cols[6]);
+                                        String cnic = stripTags(cols[7]);
+                                        String address1 = stripTags(cols[8]);
+                                        String address2 = stripTags(cols[9]);
+                                        String address = (address1 + " " + address2).trim();
+                                        String expiry = stripTags(cols[10]);
+                                        String addedOn = cols.length > 11 ? stripTags(cols[11]) : "";
+
+                                        if (userName.isEmpty()) continue;
+
+                                        JSONObject obj = new JSONObject();
+                                        obj.put("int_id", userName);
+                                        obj.put("name", name);
+                                        obj.put("manager", "");
+                                        obj.put("cnic", cnic);
+                                        obj.put("adrs", address);
+                                        obj.put("status", status);
+                                        obj.put("mob", mobile);
+                                        obj.put("reg", addedOn);
+                                        obj.put("package", pkg);
+                                        obj.put("rech_dt", "");
+                                        obj.put("exp_dt", expiry);
+
+                                        resultList.add(obj);
+
+                                    } catch (Exception ex) {
+                                        System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                                    }
+                                }
+                            }));
+                        }
+
+                        // Wait for ALL threads to finish
+                        for (Future<?> f : futures) {
+                            f.get();
+                        }
+                        executor.shutdown();
+
+                        // Build final JSON
+                        JSONArray jsonArray4 = new JSONArray();
+                        for (JSONObject obj : resultList) {
                             jsonArray4.put(obj);
                         }
 

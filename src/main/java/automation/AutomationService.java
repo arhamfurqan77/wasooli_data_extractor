@@ -8,6 +8,7 @@ import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.By;
@@ -30,9 +31,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 public class AutomationService {
@@ -200,6 +204,13 @@ public class AutomationService {
         } catch (Exception e) {
             System.out.println("⚠️ Failed to toggle: " + value);
         }
+    }
+
+    private static String stripTags(String html) {
+        return html.replaceAll("<[^>]*>", "")
+                .replace("&amp;", "&")
+                .replace("&nbsp;", " ")
+                .trim();
     }
 
     // 🧩 Core automation logic shared between Firefox & Chrome
@@ -686,49 +697,51 @@ public class AutomationService {
 
                     WebDriverWait wait4 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-                    // ✅ Dynamic dates
-                    LocalDate now4 = LocalDate.now();
-                    String fromDate4 = now4.withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                    String toDate4 = now4.withDayOfMonth(now4.lengthOfMonth()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
                     System.out.println("🚀 Opening Connect...");
                     driver.get(url + "login/");
 
-                    // 🔐 LOGIN
-                    wait4.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.cssSelector("input[type='text'].form-control")
-                    )).sendKeys(username);
-
-                    driver.findElement(By.cssSelector("input[type='password'].form-control")).sendKeys(password);
-
-                    wait4.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[@type='submit' and contains(@class,'btn-submit')]")
-                    )).click();
-
-                    // ⏳ Wait after login click
-                    Thread.sleep(2000);
-
-                    // ⏳ Wait for redirect after login
-                    loginSuccess = false;
-
                     try {
-                        wait4.until(ExpectedConditions.urlContains("/dashboard"));
-                        loginSuccess = true;
-                    } catch (TimeoutException e) {
+                        // 🔐 LOGIN
+                        wait4.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.cssSelector("input[type='text'].form-control")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.cssSelector("input[type='password'].form-control")).sendKeys(password);
+
+                        wait4.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit' and contains(@class,'btn-submit')]")
+                        )).click();
+
+                        // ⏳ Wait after login click
+                        Thread.sleep(2000);
+
+                        // ⏳ Wait for redirect after login
                         loginSuccess = false;
-                    }
 
-                    // ❌ If login failed → stop execution
-                    if (!loginSuccess) {
+                        try {
+                            wait4.until(ExpectedConditions.urlContains("/dashboard"));
+                            loginSuccess = true;
+                        } catch (TimeoutException e) {
+                            loginSuccess = false;
+                        }
+
+                        // ❌ If login failed → stop execution
+                        if (!loginSuccess) {
+                            driver.quit();
+                            System.out.println("❌ Wrong Login Credentials");
+                            System.out.println("The End");
+                            return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        }
+
+                        System.out.println("✅ Login successful, continuing...");
+
+                    } catch (Exception e) {
                         driver.quit();
-                        System.out.println("❌ Wrong Login Credentials");
-                        System.out.println("The End");
-                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        return "{\"status\":\"error\",\"step\":\"login\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
                     }
 
-                    System.out.println("✅ Login successful, continuing...");
-
-                    Thread.sleep(5000);
+                    Thread.sleep(2000);
 
                     try {
                         WebElement closeBtn = wait4.until(ExpectedConditions.elementToBeClickable(
@@ -741,83 +754,133 @@ public class AutomationService {
                         System.out.println("⚠️ No notice modal appeared, continuing...");
                     }
 
-                    // 📄 Navigate to recharge logs
-                    driver.get(url + "customers/report/recharge-logs");
+                    try {
+                        // 📄 Navigate to report page
+                        System.out.println("📄 Opening report page...");
+                        driver.get(url + "/customers/report");
 
-                    WebElement dateRangeInput4 = wait4.until(
-                            ExpectedConditions.elementToBeClickable(By.name("daterange"))
-                    );
+                        wait4.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//table")
+                        ));
 
-                    // Click first (important)
-                    dateRangeInput4.click();
-                    Thread.sleep(500);
+                        // 👉 Scroll horizontally (important)
+                        ((JavascriptExecutor) driver).executeScript("window.scrollBy(2000,0)");
+                        Thread.sleep(1000);
 
-                    // Clear and type
-                    dateRangeInput4.sendKeys(Keys.CONTROL + "a");
-                    dateRangeInput4.sendKeys(Keys.DELETE);
+                        // 🔍 Find ALL user links (U column)
+                        List<WebElement> userLinks = driver.findElements(
+                                By.xpath("//a[contains(@href,'user-list')]")
+                        );
 
-                    dateRangeInput4.sendKeys(fromDate4 + " - " + toDate4);
-                    dateRangeInput4.sendKeys(Keys.ENTER);
+                        if (userLinks.size() == 0) {
+                            throw new Exception("No user-list links found");
+                        }
 
-                    System.out.println("✅ Date range entered manually");
+                        // 👉 Pick the BIGGEST one (most users)
+                        WebElement targetLink = userLinks.stream()
+                                .filter(e -> !e.getText().trim().isEmpty())
+                                .max(Comparator.comparingInt(e -> {
+                                    try {
+                                        return Integer.parseInt(e.getText().trim());
+                                    } catch (Exception ex) {
+                                        return 0;
+                                    }
+                                }))
+                                .orElseThrow(() -> new Exception("No valid user link found"));
 
-                    Thread.sleep(1000);
+                        String totalCount = targetLink.getText().trim();
+                        System.out.println("🎯 Clicking Users count: " + totalCount);
 
-                    // 🔍 Click Search
-                    WebElement searchBtn4 = wait4.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//input[@type='submit' and @value='Search']")
-                            )
-                    );
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchBtn4);
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn4);
+                        // 🆕 Handle new tab
+                        String mainWindow = driver.getWindowHandle();
 
-                    System.out.println("🔍 Search clicked. Waiting for table...");
-                    Thread.sleep(3000);
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", targetLink);
 
-                    // 📊 Extract table rows
-                    wait4.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//div[@class='table-responsive']//tbody/tr")
-                    ));
+                        // wait for new tab
+                        wait4.until(d -> d.getWindowHandles().size() > 1);
 
-                    java.util.List<WebElement> rows4 = driver.findElements(
-                            By.xpath("//div[@class='table-responsive']//tbody/tr")
-                    );
+                        // 🔥 SAFE SWITCH
+                        Set<String> handles = driver.getWindowHandles();
+                        handles.remove(mainWindow);
 
-                    JSONArray jsonArray4 = new JSONArray();
+                        String newTab = handles.iterator().next();
 
-                    for (WebElement row : rows4) {
-                        java.util.List<WebElement> cols = row.findElements(By.tagName("td"));
-                        if (cols.size() < 6) continue;
+                        driver.switchTo().window(newTab);
 
-                        // Table columns (0-indexed):
-                        // 0: S.No | 1: User Name | 2: Franchise | 3: By | 4: Date/Time | 5: Package
+                        // 🔥 WAIT FOR PAGE LOAD PROPERLY
+                        wait4.until(d -> ((JavascriptExecutor) d)
+                                .executeScript("return document.readyState").equals("complete"));
 
-                        String userName = cols.get(1).getText().trim();
-                        String by = cols.get(3).getText().trim();
-                        String pkg = cols.get(5).getText().trim();
-                        String dateTime = cols.get(4).getText().trim();
+                        System.out.println("🆕 Switched to user list tab");
 
+                        // 📊 Wait for table
+                        wait4.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//tbody/tr")
+                        ));
 
-                        JSONObject obj = new JSONObject();
-                        obj.put("int_id", userName);
-                        obj.put("name", by);
-                        obj.put("manager", "");
-                        obj.put("cnic", "");
-                        obj.put("adrs", "");
-                        obj.put("status", "");
-                        obj.put("mob", "");
-                        obj.put("reg", "");
-                        obj.put("package", pkg);
-                        obj.put("rech_dt", dateTime);
-                        obj.put("exp_dt", "");
+                        rows = wait4.until(
+                                ExpectedConditions.visibilityOfAllElementsLocatedBy(By.xpath("//tbody/tr"))
+                        );
 
+                        if (driver.getWindowHandles().size() < 1) {
+                            throw new Exception("Window lost before extraction");
+                        }
 
-                        jsonArray4.put(obj);
+                        String tableHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
+
+                        JSONArray jsonArray4 = new JSONArray();
+
+                        // Parse with regex or simple string splitting
+                        String[] rowBlocks = tableHtml.split("<tr>");
+
+                        for (String row : rowBlocks) {
+                            if (row.trim().isEmpty()) continue;
+
+                            String[] cols = row.split("<td[^>]*>");
+                            if (cols.length < 11) continue;
+
+                            String pkg = stripTags(cols[2]);
+                            String statusText = stripTags(cols[3]);
+                            String status = statusText.equalsIgnoreCase("Active") ? "1" : "0";
+                            String userName = stripTags(cols[4]);
+                            String name = stripTags(cols[5]);
+                            String mobile = stripTags(cols[6]);
+                            String cnic = stripTags(cols[7]);
+                            String address1 = stripTags(cols[8]);
+                            String address2 = stripTags(cols[9]);
+                            String address = (address1 + " " + address2).trim();
+                            String expiry = stripTags(cols[10]);
+                            String addedOn = cols.length > 11 ? stripTags(cols[11]) : "";
+
+                            if (userName.isEmpty()) continue;
+
+                            JSONObject obj = new JSONObject();
+                            obj.put("int_id", userName);
+                            obj.put("name", name);
+                            obj.put("manager", "");
+                            obj.put("cnic", cnic);
+                            obj.put("adrs", address);
+                            obj.put("status", status);
+                            obj.put("mob", mobile);
+                            obj.put("reg", addedOn);
+                            obj.put("package", pkg);
+                            obj.put("rech_dt", "");
+                            obj.put("exp_dt", expiry);
+
+                            jsonArray4.put(obj);
+                        }
+
+                        System.out.println("✅ Extracted users: " + jsonArray4.length());
+                        return jsonArray4.toString();
+                    } catch (Exception e) {
+
+                        System.out.println("❌ ERROR IN CONNECT FLOW");
+                        e.printStackTrace();
+
+                        return "{\"status\":\"error\",\"step\":\"connect_flow\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
                     }
-
-                    System.out.println("✅ Extracted " + jsonArray4.length() + " rows from Connect.");
-                    return jsonArray4.toString();
 
                 case "national":
 

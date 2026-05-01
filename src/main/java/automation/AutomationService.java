@@ -529,43 +529,49 @@ public class AutomationService {
 
                     driver.get(url);
 
-                    // 🔐 LOGIN
-                    wait3.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//input[@name='username']")
-                    )).sendKeys(username);
-
-                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
-
-                    wait3.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
-                    )).click();
-
-                    // ⏳ Wait after login click
-                    Thread.sleep(2000);
-
-                    // ⏳ Wait for redirect after login
-                    loginSuccess = false;
-
                     try {
-                        wait3.until(ExpectedConditions.urlContains("/dashboard"));
-                        loginSuccess = true;
-                    } catch (TimeoutException e) {
+                        // 🔐 LOGIN
+                        wait3.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//input[@name='username']")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                        wait3.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                        )).click();
+
+                        // ⏳ Wait after login click
+                        Thread.sleep(2000);
+
+                        // ⏳ Wait for redirect after login
                         loginSuccess = false;
-                    }
 
-                    // ❌ If login failed → stop execution
-                    if (!loginSuccess) {
+                        try {
+                            wait3.until(ExpectedConditions.urlContains("/dashboard"));
+                            loginSuccess = true;
+                        } catch (TimeoutException e) {
+                            loginSuccess = false;
+                        }
+
+                        // ❌ If login failed → stop execution
+                        if (!loginSuccess) {
+                            driver.quit();
+                            System.out.println("❌ Wrong Login Credentials");
+                            System.out.println("The End");
+                            return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        }
+
+                        System.out.println("✅ Login successful, continuing...");
+
+                    } catch (Exception e) {
                         driver.quit();
-                        System.out.println("❌ Wrong Login Credentials");
-                        System.out.println("The End");
-                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        return "{\"status\":\"error\",\"step\":\"login\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
                     }
-
-                    System.out.println("✅ Login successful, continuing...");
-
-                    wait3 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
                     try {
+                        wait3 = new WebDriverWait(driver, Duration.ofSeconds(10));
                         List<WebElement> closeBtns = driver.findElements(
                                 By.xpath("//button[contains(@class,'p-dialog-header-close')]")
                         );
@@ -594,11 +600,9 @@ public class AutomationService {
                     wait3.until(ExpectedConditions.urlContains("users"));
                     System.out.println("📄 Navigated to users page");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
                     wait3 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    WebElement columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                    WebElement columnMenuBtn = wait3.until(ExpectedConditions.elementToBeClickable(
                             By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
                     ));
 
@@ -607,17 +611,18 @@ public class AutomationService {
 
                     Thread.sleep(1000);
 
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    wait3.until(ExpectedConditions.visibilityOfElementLocated(
                             By.cssSelector("div.p-overlaypanel-content")
                     ));
 
-                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
-                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
-                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
+                    clickCheckboxIfNeeded(driver, wait3, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait3, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait3, "national_id");  // National ID
+
 
                     try {
                         WebElement rows500 = wait3.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//a[normalize-space()='500']")
+                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
                         ));
 
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
@@ -629,70 +634,147 @@ public class AutomationService {
                         System.out.println("⚠️ Could not select 500 rows");
                     }
 
-                    wait3.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//table//tbody/tr")
-                    ));
-
-                    List<WebElement> rows = driver.findElements(
-                            By.xpath("//table//tbody/tr")
-                    );
-
                     JSONArray jsonArray = new JSONArray();
+                    List<String> allRowsHtml = new ArrayList<>();
+                    int totalUsers = 0;
 
-                    for (WebElement row : rows) {
+                    boolean hasNextPage = true;
 
-                        List<WebElement> cols = row.findElements(By.tagName("td"));
+                    while (hasNextPage) {
 
-                        if (cols.size() < 30) continue; // adjust based on actual table
+                        wait3.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                                By.xpath("//table//tbody/tr")
+                        ));
 
-                        // ⚠️ Adjust indexes based on actual UI
-//                        String status = cols.get(2).getText().trim();
-                        String username3 = cols.get(4).getText().trim();
-                        String firstName = cols.get(5).getText().trim();
-                        String lastName = cols.get(6).getText().trim();
-                        String expiry = cols.get(7).getText().trim();
-                        String parent = cols.get(8).getText().trim();
-                        String profile = cols.get(9).getText().trim();
-                        String phone = cols.get(22).getText().trim();
-                        String address = cols.get(23).getText().trim();
-                        String cnic = cols.get(27).getText().trim();
+                        Thread.sleep(1000);
 
-                        LocalDateTime now = LocalDateTime.now();
+                        // 🔥 Extract FULL TABLE HTML for this page
+                        String pageHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
 
-                        // 🧠 Parse expiry date (adjust format if needed)
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                        LocalDateTime expiryDateTime = null;
+                        String[] rowsSplit = pageHtml.split("<tr");
 
+                        for (String row : rowsSplit) {
+                            if (row.contains("<td")) {
+                                allRowsHtml.add(row);
+                            }
+                        }
+
+                        totalUsers += rowsSplit.length;
+
+                        System.out.println("📄 Collected page. Total rows so far: " + allRowsHtml.size());
+
+                        // 🔁 NEXT PAGE LOGIC (UNCHANGED)
                         try {
-                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
-                        } catch (DateTimeParseException e) {
-                            System.out.println("⚠️ Invalid date format: " + expiry);
+                            WebElement nextBtn = driver.findElement(
+                                    By.xpath("//a[@aria-label='Next']/parent::li")
+                            );
+
+                            String classes = nextBtn.getAttribute("class");
+
+                            if (classes.contains("disabled")) {
+                                System.out.println("🚫 No more pages");
+                                hasNextPage = false;
+                            } else {
+                                WebElement nextLink = nextBtn.findElement(By.tagName("a"));
+
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextLink);
+
+                                System.out.println("➡️ Moving to next page");
+
+                                Thread.sleep(3000);
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Next button not found, stopping pagination");
+                            hasNextPage = false;
                         }
+                    }
 
-                        String status3 = "0"; // default expired
+                    int totalRows = allRowsHtml.size();
+                    int chunkSize = 500;
+                    int numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
-                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
-                            status3 = "1"; // active
-                        }
+                    System.out.println("📊 Total rows collected: " + totalRows + " | Threads: " + numThreads);
 
-                        JSONObject obj = new JSONObject();
+                    List<JSONObject> resultList = Collections.synchronizedList(new ArrayList<>());
 
-                        obj.put("int_id", username3);
-                        obj.put("name", (firstName + " " + lastName).trim());
-                        obj.put("manager", parent);
-                        obj.put("cnic", cnic);
-                        obj.put("adrs", address);
-                        obj.put("status", status3);
-                        obj.put("mob", phone);
-                        obj.put("reg", "");
-                        obj.put("package", profile);
-                        obj.put("rech_dt", "");
-                        obj.put("exp_dt", expiry);
+                    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+                    List<Future> futures = new ArrayList<>();
 
+                    for (int t = 0; t < numThreads; t++) {
+
+                        int start = t * chunkSize;
+                        int end = Math.min(start + chunkSize, totalRows);
+
+                        List<String> chunk = allRowsHtml.subList(start, end);
+
+                        futures.add(executor.submit(() -> {
+
+                            for (String row : chunk) {
+                                try {
+
+                                    String[] cols = row.split("<td[^>]*>");
+                                    if (cols.length < 28) continue;
+
+                                    String username3 = stripTags(cols[5]);
+                                    String firstName = stripTags(cols[6]);
+                                    String lastName = stripTags(cols[7]);
+                                    String expiry = stripTags(cols[8]);
+                                    String parent = stripTags(cols[9]);
+                                    String profile = stripTags(cols[10]);
+                                    String phone = stripTags(cols[23]);
+                                    String address = stripTags(cols[24]);
+                                    String cnic = stripTags(cols[28]);
+
+                                    // 🧠 STATUS LOGIC
+                                    String status3 = "0";
+                                    try {
+                                        LocalDateTime now = LocalDateTime.now();
+                                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                                        LocalDateTime expiryDateTime = LocalDateTime.parse(expiry, formatter);
+
+                                        if (!expiryDateTime.isBefore(now)) {
+                                            status3 = "1";
+                                        }
+                                    } catch (Exception ignore) {
+                                    }
+
+                                    JSONObject obj = new JSONObject();
+
+                                    obj.put("int_id", username3);
+                                    obj.put("name", (firstName + " " + lastName).trim());
+                                    obj.put("manager", parent);
+                                    obj.put("cnic", cnic);
+                                    obj.put("adrs", address);
+                                    obj.put("status", status3);
+                                    obj.put("mob", phone);
+                                    obj.put("reg", "");
+                                    obj.put("package", profile);
+                                    obj.put("rech_dt", "");
+                                    obj.put("exp_dt", expiry);
+
+                                    resultList.add(obj);
+
+                                } catch (Exception ex) {
+                                    System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                                }
+                            }
+                        }));
+                    }
+
+                    // wait all threads
+                    for (Future<?> f : futures) {
+                        f.get();
+                    }
+                    executor.shutdown();
+
+                    // build final JSON
+                    for (JSONObject obj : resultList) {
                         jsonArray.put(obj);
                     }
 
-                    System.out.println("✅ Extracted " + jsonArray.length() + " users");
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users (parallel)");
                     return jsonArray.toString();
 
                 case "connect":
@@ -836,17 +918,17 @@ public class AutomationService {
                             if (!row.trim().isEmpty()) validRows.add(row);
                         }
 
-                        int totalRows = validRows.size();
-                        int chunkSize = 1000;
-                        int numThreads = (int) Math.ceil((double) totalRows / chunkSize);
+                        totalRows = validRows.size();
+                        chunkSize = 1000;
+                        numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
                         System.out.println("📊 Total rows: " + totalRows + " | Threads: " + numThreads);
 
                         // Thread-safe list to collect results
-                        List<JSONObject> resultList = Collections.synchronizedList(new ArrayList<>());
+                        resultList = Collections.synchronizedList(new ArrayList<>());
 
-                        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-                        List<Future<?>> futures = new ArrayList<>();
+                        executor = Executors.newFixedThreadPool(numThreads);
+                        futures = new ArrayList<>();
 
                         for (int t = 0; t < numThreads; t++) {
                             int start = t * chunkSize;
@@ -1170,43 +1252,70 @@ public class AutomationService {
 
                     driver.get(url);
 
-                    // 🔐 LOGIN
-                    wait6.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//input[@name='username']")
-                    )).sendKeys(username);
+                    try {
+                        // 🔐 LOGIN
+                        wait6.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//input[@name='username']")
+                        )).sendKeys(username);
 
-                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+                        driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
 
-                    wait6.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
-                    )).click();
+                        wait6.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                        )).click();
 
-                    // ⏳ Wait after login click
-                    Thread.sleep(2000);
+                        // ⏳ Wait after login click
+                        Thread.sleep(2000);
 
-                    // ⏳ Wait for redirect after login
-                    loginSuccess = false;
+                        // ⏳ Wait for redirect after login
+                        loginSuccess = false;
+
+                        try {
+                            wait6.until(ExpectedConditions.urlContains("/dashboard"));
+                            loginSuccess = true;
+                        } catch (TimeoutException e) {
+                            loginSuccess = false;
+                        }
+
+                        // ❌ If login failed → stop execution
+                        if (!loginSuccess) {
+                            driver.quit();
+                            System.out.println("❌ Wrong Login Credentials");
+                            System.out.println("The End");
+                            return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        }
+
+                        System.out.println("✅ Login successful, continuing...");
+
+                    } catch (Exception e) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"step\":\"login\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
+                    }
 
                     try {
-                        wait6.until(ExpectedConditions.urlContains("/dashboard"));
-                        loginSuccess = true;
-                    } catch (TimeoutException e) {
-                        loginSuccess = false;
+                        wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
+                        List<WebElement> closeBtns = driver.findElements(
+                                By.xpath("//button[contains(@class,'p-dialog-header-close')]")
+                        );
+
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
+
+                            System.out.println("✅ Close popup found, clicking...");
+
+                            WebElement closeBtn = closeBtns.get(0);
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error while closing popup, skipping...");
                     }
 
-                    // ❌ If login failed → stop execution
-                    if (!loginSuccess) {
-                        driver.quit();
-                        System.out.println("❌ Wrong Login Credentials");
-                        System.out.println("The End");
-                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
-                    }
-
-                    System.out.println("✅ Login successful, continuing...");
-
-                    wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-                    // 📄 Navigate to report page
+                    // 📄 Navigate to users page
                     driver.get(url + "#/users/index");
 
                     wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -1214,11 +1323,9 @@ public class AutomationService {
                     wait6.until(ExpectedConditions.urlContains("users"));
                     System.out.println("📄 Navigated to users page");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
                     wait6 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                    columnMenuBtn = wait6.until(ExpectedConditions.elementToBeClickable(
                             By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
                     ));
 
@@ -1227,17 +1334,18 @@ public class AutomationService {
 
                     Thread.sleep(1000);
 
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    wait6.until(ExpectedConditions.visibilityOfElementLocated(
                             By.cssSelector("div.p-overlaypanel-content")
                     ));
 
-                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
-                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
-                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
+                    clickCheckboxIfNeeded(driver, wait6, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait6, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait6, "national_id");  // National ID
+
 
                     try {
                         WebElement rows500 = wait6.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//a[normalize-space()='500']")
+                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
                         ));
 
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
@@ -1249,150 +1357,221 @@ public class AutomationService {
                         System.out.println("⚠️ Could not select 500 rows");
                     }
 
-                    wait6.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//table//tbody/tr")
-                    ));
-
-                    rows = driver.findElements(
-                            By.xpath("//table//tbody/tr")
-                    );
-
                     jsonArray = new JSONArray();
+                    allRowsHtml = new ArrayList<>();
+                    totalUsers = 0;
 
-                    for (WebElement row : rows) {
+                    hasNextPage = true;
 
-                        List<WebElement> cols = row.findElements(By.tagName("td"));
+                    while (hasNextPage) {
 
-                        if (cols.size() < 30) continue; // adjust based on actual table
+                        wait6.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                                By.xpath("//table//tbody/tr")
+                        ));
 
-                        // ⚠️ Adjust indexes based on actual UI
-//                        String status = cols.get(2).getText().trim();
-                        String username6 = cols.get(4).getText().trim();
-                        String firstName = cols.get(5).getText().trim();
-                        String lastName = cols.get(6).getText().trim();
-                        String expiry = cols.get(7).getText().trim();
-                        String parent = cols.get(8).getText().trim();
-                        String profile = cols.get(9).getText().trim();
-                        String phone = cols.get(22).getText().trim();
-                        String address = cols.get(23).getText().trim();
-                        String cnic = cols.get(27).getText().trim();
+                        Thread.sleep(1000);
 
-                        LocalDateTime now = LocalDateTime.now();
+                        // 🔥 Extract FULL TABLE HTML for this page
+                        String pageHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
 
-                        // 🧠 Parse expiry date (adjust format if needed)
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                        LocalDateTime expiryDateTime = null;
+                        String[] rowsSplit = pageHtml.split("<tr");
 
+                        for (String row : rowsSplit) {
+                            if (row.contains("<td")) {
+                                allRowsHtml.add(row);
+                            }
+                        }
+
+                        totalUsers += rowsSplit.length;
+
+                        System.out.println("📄 Collected page. Total rows so far: " + allRowsHtml.size());
+
+                        // 🔁 NEXT PAGE LOGIC (UNCHANGED)
                         try {
-                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
-                        } catch (DateTimeParseException e) {
-                            System.out.println("⚠️ Invalid date format: " + expiry);
+                            WebElement nextBtn = driver.findElement(
+                                    By.xpath("//a[@aria-label='Next']/parent::li")
+                            );
+
+                            String classes = nextBtn.getAttribute("class");
+
+                            if (classes.contains("disabled")) {
+                                System.out.println("🚫 No more pages");
+                                hasNextPage = false;
+                            } else {
+                                WebElement nextLink = nextBtn.findElement(By.tagName("a"));
+
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextLink);
+
+                                System.out.println("➡️ Moving to next page");
+
+                                Thread.sleep(3000);
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Next button not found, stopping pagination");
+                            hasNextPage = false;
                         }
+                    }
 
-                        String status6 = "0"; // default expired
+                    totalRows = allRowsHtml.size();
+                    chunkSize = 500;
+                    numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
-                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
-                            status6 = "1"; // active
-                        }
+                    System.out.println("📊 Total rows collected: " + totalRows + " | Threads: " + numThreads);
 
-                        JSONObject obj = new JSONObject();
+                    resultList = Collections.synchronizedList(new ArrayList<>());
 
-                        obj.put("int_id", username6);
-                        obj.put("name", (firstName + " " + lastName).trim());
-                        obj.put("manager", parent);
-                        obj.put("cnic", cnic);
-                        obj.put("adrs", address);
-                        obj.put("status", status6);
-                        obj.put("mob", phone);
-                        obj.put("reg", "");
-                        obj.put("package", profile);
-                        obj.put("rech_dt", "");
-                        obj.put("exp_dt", expiry);
+                    executor = Executors.newFixedThreadPool(numThreads);
+                    futures = new ArrayList<>();
 
+                    for (int t = 0; t < numThreads; t++) {
+
+                        int start = t * chunkSize;
+                        int end = Math.min(start + chunkSize, totalRows);
+
+                        List<String> chunk = allRowsHtml.subList(start, end);
+
+                        futures.add(executor.submit(() -> {
+
+                            for (String row : chunk) {
+                                try {
+
+                                    String[] cols = row.split("<td[^>]*>");
+                                    if (cols.length < 28) continue;
+
+                                    String username6 = stripTags(cols[5]);
+                                    String firstName = stripTags(cols[6]);
+                                    String lastName = stripTags(cols[7]);
+                                    String expiry = stripTags(cols[8]);
+                                    String parent = stripTags(cols[9]);
+                                    String profile = stripTags(cols[10]);
+                                    String phone = stripTags(cols[23]);
+                                    String address = stripTags(cols[24]);
+                                    String cnic = stripTags(cols[28]);
+
+                                    // 🧠 STATUS LOGIC
+                                    String status6 = "0";
+                                    try {
+                                        LocalDateTime now = LocalDateTime.now();
+                                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                                        LocalDateTime expiryDateTime = LocalDateTime.parse(expiry, formatter);
+
+                                        if (!expiryDateTime.isBefore(now)) {
+                                            status6 = "1";
+                                        }
+                                    } catch (Exception ignore) {
+                                    }
+
+                                    JSONObject obj = new JSONObject();
+
+                                    obj.put("int_id", username6);
+                                    obj.put("name", (firstName + " " + lastName).trim());
+                                    obj.put("manager", parent);
+                                    obj.put("cnic", cnic);
+                                    obj.put("adrs", address);
+                                    obj.put("status", status6);
+                                    obj.put("mob", phone);
+                                    obj.put("reg", "");
+                                    obj.put("package", profile);
+                                    obj.put("rech_dt", "");
+                                    obj.put("exp_dt", expiry);
+
+                                    resultList.add(obj);
+
+                                } catch (Exception ex) {
+                                    System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                                }
+                            }
+                        }));
+                    }
+
+                    // wait all threads
+                    for (Future<?> f : futures) {
+                        f.get();
+                    }
+                    executor.shutdown();
+
+                    // build final JSON
+                    for (JSONObject obj : resultList) {
                         jsonArray.put(obj);
                     }
 
-                    System.out.println("✅ Extracted " + jsonArray.length() + " users");
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users (parallel)");
                     return jsonArray.toString();
 
                 case "mak_net":
 
                     WebDriverWait wait7 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-                    String downloadDir7 = System.getProperty("user.home") + "\\Downloads";
-
-                    // 🧹 Delete old file if exists
-                    String[] targetFiles7 = {"sas4_export.xlsx"};
-
-                    // 🧹 Delete old files BEFORE
-                    for (String fileName : targetFiles7) {
-                        File f = new File(downloadDir7, fileName);
-                        if (f.exists()) {
-                            f.delete();
-                            System.out.println("🧹 Deleted old file: " + fileName);
-                        }
-                    }
-
                     System.out.println("🚀 Opening MakNet...");
 
                     driver.get(url);
 
-                    // 🔐 LOGIN
-                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//input[@name='username']")
-                    )).sendKeys(username);
-
-                    driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
-
-                    wait7.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
-                    )).click();
-
-                    // ⏳ Wait after login click
-                    Thread.sleep(2000);
-
-                    // ⏳ Wait for redirect after login
-                    loginSuccess = false;
-
                     try {
-                        wait7.until(ExpectedConditions.urlContains("/dashboard"));
-                        loginSuccess = true;
-                    } catch (TimeoutException e) {
+                        // 🔐 LOGIN
+                        wait7.until(ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath("//input[@name='username']")
+                        )).sendKeys(username);
+
+                        driver.findElement(By.xpath("//input[@name='password']")).sendKeys(password);
+
+                        wait7.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//button[@type='submit']//span[contains(text(),'Login')]")
+                        )).click();
+
+                        // ⏳ Wait after login click
+                        Thread.sleep(2000);
+
+                        // ⏳ Wait for redirect after login
                         loginSuccess = false;
-                    }
 
-                    // ❌ If login failed → stop execution
-                    if (!loginSuccess) {
+                        try {
+                            wait7.until(ExpectedConditions.urlContains("/dashboard"));
+                            loginSuccess = true;
+                        } catch (TimeoutException e) {
+                            loginSuccess = false;
+                        }
+
+                        // ❌ If login failed → stop execution
+                        if (!loginSuccess) {
+                            driver.quit();
+                            System.out.println("❌ Wrong Login Credentials");
+                            System.out.println("The End");
+                            return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        }
+
+                        System.out.println("✅ Login successful, continuing...");
+
+                    } catch (Exception e) {
                         driver.quit();
-                        System.out.println("❌ Wrong Login Credentials");
-                        System.out.println("The End");
-                        return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+                        return "{\"status\":\"error\",\"step\":\"login\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
                     }
-
-                    System.out.println("✅ Login successful, continuing...");
 
                     try {
-                        WebDriverWait popupWait = new WebDriverWait(driver, Duration.ofSeconds(5));
-
-                        WebElement closeBtn = popupWait.until(ExpectedConditions.elementToBeClickable(
+                        wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
+                        List<WebElement> closeBtns = driver.findElements(
                                 By.xpath("//button[contains(@class,'p-dialog-header-close')]")
-                        ));
+                        );
 
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+                        if (!closeBtns.isEmpty() && closeBtns.get(0).isDisplayed()) {
 
-                        System.out.println("❌ Popup closed");
+                            System.out.println("✅ Close popup found, clicking...");
 
-                        // optional small wait to let UI settle
-                        Thread.sleep(1000);
+                            WebElement closeBtn = closeBtns.get(0);
 
-                    } catch (TimeoutException e) {
-                        System.out.println("ℹ️ No popup found, continuing...");
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", closeBtn);
+
+                        } else {
+                            System.out.println("⚠️ Popup not present, skipping...");
+                        }
+
                     } catch (Exception e) {
-                        System.out.println("⚠️ Tried closing popup but failed, continuing...");
+                        System.out.println("⚠️ Error while closing popup, skipping...");
                     }
 
-                    wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
-
+                    // 📄 Navigate to users page
                     driver.get(url + "#/users/index");
 
                     wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -1400,11 +1579,9 @@ public class AutomationService {
                     wait7.until(ExpectedConditions.urlContains("users"));
                     System.out.println("📄 Navigated to users page");
 
-                    wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
                     wait7 = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-                    columnMenuBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                    columnMenuBtn = wait7.until(ExpectedConditions.elementToBeClickable(
                             By.xpath("//a[contains(@class,'ng-tns-c60') and .//i[contains(@class,'fa-list')]]")
                     ));
 
@@ -1413,17 +1590,18 @@ public class AutomationService {
 
                     Thread.sleep(1000);
 
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
                             By.cssSelector("div.p-overlaypanel-content")
                     ));
 
-                    clickCheckboxIfNeeded(driver, wait, "phone");        // Mobile
-                    clickCheckboxIfNeeded(driver, wait, "address");      // Address
-                    clickCheckboxIfNeeded(driver, wait, "national_id");  // National ID
+                    clickCheckboxIfNeeded(driver, wait7, "phone");        // Mobile
+                    clickCheckboxIfNeeded(driver, wait7, "address");      // Address
+                    clickCheckboxIfNeeded(driver, wait7, "national_id");  // National ID
+
 
                     try {
                         WebElement rows500 = wait7.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//a[normalize-space()='500']")
+                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
                         ));
 
                         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
@@ -1435,70 +1613,147 @@ public class AutomationService {
                         System.out.println("⚠️ Could not select 500 rows");
                     }
 
-                    wait7.until(ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//table//tbody/tr")
-                    ));
-
-                    rows = driver.findElements(
-                            By.xpath("//table//tbody/tr")
-                    );
-
                     jsonArray = new JSONArray();
+                    allRowsHtml = new ArrayList<>();
+                    totalUsers = 0;
 
-                    for (WebElement row : rows) {
+                    hasNextPage = true;
 
-                        List<WebElement> cols = row.findElements(By.tagName("td"));
+                    while (hasNextPage) {
 
-                        if (cols.size() < 30) continue; // adjust based on actual table
+                        wait7.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                                By.xpath("//table//tbody/tr")
+                        ));
 
-                        // ⚠️ Adjust indexes based on actual UI
-//                        String status = cols.get(2).getText().trim();
-                        String username7 = cols.get(4).getText().trim();
-                        String firstName = cols.get(5).getText().trim();
-                        String lastName = cols.get(6).getText().trim();
-                        String expiry = cols.get(7).getText().trim();
-                        String parent = cols.get(8).getText().trim();
-                        String profile = cols.get(9).getText().trim();
-                        String phone = cols.get(22).getText().trim();
-                        String address = cols.get(23).getText().trim();
-                        String cnic = cols.get(27).getText().trim();
+                        Thread.sleep(1000);
 
-                        LocalDateTime now = LocalDateTime.now();
+                        // 🔥 Extract FULL TABLE HTML for this page
+                        String pageHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
 
-                        // 🧠 Parse expiry date (adjust format if needed)
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                        LocalDateTime expiryDateTime = null;
+                        String[] rowsSplit = pageHtml.split("<tr");
 
+                        for (String row : rowsSplit) {
+                            if (row.contains("<td")) {
+                                allRowsHtml.add(row);
+                            }
+                        }
+
+                        totalUsers += rowsSplit.length;
+
+                        System.out.println("📄 Collected page. Total rows so far: " + allRowsHtml.size());
+
+                        // 🔁 NEXT PAGE LOGIC (UNCHANGED)
                         try {
-                            expiryDateTime = LocalDateTime.parse(expiry, formatter);
-                        } catch (DateTimeParseException e) {
-                            System.out.println("⚠️ Invalid date format: " + expiry);
+                            WebElement nextBtn = driver.findElement(
+                                    By.xpath("//a[@aria-label='Next']/parent::li")
+                            );
+
+                            String classes = nextBtn.getAttribute("class");
+
+                            if (classes.contains("disabled")) {
+                                System.out.println("🚫 No more pages");
+                                hasNextPage = false;
+                            } else {
+                                WebElement nextLink = nextBtn.findElement(By.tagName("a"));
+
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nextLink);
+
+                                System.out.println("➡️ Moving to next page");
+
+                                Thread.sleep(3000);
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Next button not found, stopping pagination");
+                            hasNextPage = false;
                         }
+                    }
 
-                        String status7 = "0"; // default expired
+                    totalRows = allRowsHtml.size();
+                    chunkSize = 500;
+                    numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
-                        if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
-                            status7 = "1"; // active
-                        }
+                    System.out.println("📊 Total rows collected: " + totalRows + " | Threads: " + numThreads);
 
-                        JSONObject obj = new JSONObject();
+                    resultList = Collections.synchronizedList(new ArrayList<>());
 
-                        obj.put("int_id", username7);
-                        obj.put("name", (firstName + " " + lastName).trim());
-                        obj.put("manager", parent);
-                        obj.put("cnic", cnic);
-                        obj.put("adrs", address);
-                        obj.put("status", status7);
-                        obj.put("mob", phone);
-                        obj.put("reg", "");
-                        obj.put("package", profile);
-                        obj.put("rech_dt", "");
-                        obj.put("exp_dt", expiry);
+                    executor = Executors.newFixedThreadPool(numThreads);
+                    futures = new ArrayList<>();
 
+                    for (int t = 0; t < numThreads; t++) {
+
+                        int start = t * chunkSize;
+                        int end = Math.min(start + chunkSize, totalRows);
+
+                        List<String> chunk = allRowsHtml.subList(start, end);
+
+                        futures.add(executor.submit(() -> {
+
+                            for (String row : chunk) {
+                                try {
+
+                                    String[] cols = row.split("<td[^>]*>");
+                                    if (cols.length < 28) continue;
+
+                                    String username7 = stripTags(cols[5]);
+                                    String firstName = stripTags(cols[6]);
+                                    String lastName = stripTags(cols[7]);
+                                    String expiry = stripTags(cols[8]);
+                                    String parent = stripTags(cols[9]);
+                                    String profile = stripTags(cols[10]);
+                                    String phone = stripTags(cols[23]);
+                                    String address = stripTags(cols[24]);
+                                    String cnic = stripTags(cols[28]);
+
+                                    // 🧠 STATUS LOGIC
+                                    String status7 = "0";
+                                    try {
+                                        LocalDateTime now = LocalDateTime.now();
+                                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                                        LocalDateTime expiryDateTime = LocalDateTime.parse(expiry, formatter);
+
+                                        if (!expiryDateTime.isBefore(now)) {
+                                            status7 = "1";
+                                        }
+                                    } catch (Exception ignore) {
+                                    }
+
+                                    JSONObject obj = new JSONObject();
+
+                                    obj.put("int_id", username7);
+                                    obj.put("name", (firstName + " " + lastName).trim());
+                                    obj.put("manager", parent);
+                                    obj.put("cnic", cnic);
+                                    obj.put("adrs", address);
+                                    obj.put("status", status7);
+                                    obj.put("mob", phone);
+                                    obj.put("reg", "");
+                                    obj.put("package", profile);
+                                    obj.put("rech_dt", "");
+                                    obj.put("exp_dt", expiry);
+
+                                    resultList.add(obj);
+
+                                } catch (Exception ex) {
+                                    System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                                }
+                            }
+                        }));
+                    }
+
+                    // wait all threads
+                    for (Future<?> f : futures) {
+                        f.get();
+                    }
+                    executor.shutdown();
+
+                    // build final JSON
+                    for (JSONObject obj : resultList) {
                         jsonArray.put(obj);
                     }
 
-                    System.out.println("✅ Extracted " + jsonArray.length() + " users");
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users (parallel)");
                     return jsonArray.toString();
 
                 case "daddy_sas":
@@ -2782,7 +3037,7 @@ public class AutomationService {
 
                     return jsonArray13.toString();
 
-             case "wellnet":
+                case "wellnet":
 
                     WebDriverWait wait14 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
@@ -2866,16 +3121,16 @@ public class AutomationService {
 
                         System.out.println("✅ Selected 500 rows");
 
-                        Thread.sleep(10000); // wait for table reload
+                        Thread.sleep(3000); // wait for table reload
                     } catch (Exception e) {
                         System.out.println("⚠️ Could not select 500 rows");
                     }
 
                     jsonArray = new JSONArray();
-                    List<String> allRowsHtml = new ArrayList<>();
-                    int totalUsers = 0;
+                    allRowsHtml = new ArrayList<>();
+                    totalUsers = 0;
 
-                    boolean hasNextPage = true;
+                    hasNextPage = true;
 
                     while (hasNextPage) {
 
@@ -2928,16 +3183,16 @@ public class AutomationService {
                         }
                     }
 
-                    int totalRows = allRowsHtml.size();
-                    int chunkSize = 500;
-                    int numThreads = (int) Math.ceil((double) totalRows / chunkSize);
+                    totalRows = allRowsHtml.size();
+                    chunkSize = 500;
+                    numThreads = (int) Math.ceil((double) totalRows / chunkSize);
 
                     System.out.println("📊 Total rows collected: " + totalRows + " | Threads: " + numThreads);
 
-                    List<JSONObject> resultList = Collections.synchronizedList(new ArrayList<>());
+                    resultList = Collections.synchronizedList(new ArrayList<>());
 
-                    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-                    List<Future<?>> futures = new ArrayList<>();
+                    executor = Executors.newFixedThreadPool(numThreads);
+                    futures = new ArrayList<>();
 
                     for (int t = 0; t < numThreads; t++) {
 

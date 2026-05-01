@@ -2782,7 +2782,7 @@ public class AutomationService {
 
                     return jsonArray13.toString();
 
-                case "wellnet":
+             case "wellnet":
 
                     WebDriverWait wait14 = new WebDriverWait(driver, Duration.ofSeconds(20));
 
@@ -2871,21 +2871,13 @@ public class AutomationService {
                         System.out.println("⚠️ Could not select 500 rows");
                     }
 
-                    jsonArray = new JSONArray(); // ✅ initialize once
+                    jsonArray = new JSONArray();
+                    List<String> allRowsHtml = new ArrayList<>();
                     int totalUsers = 0;
 
                     boolean hasNextPage = true;
 
                     while (hasNextPage) {
-
-                        wait14.until(ExpectedConditions.visibilityOfElementLocated(
-                                By.xpath("//table//tbody/tr")
-                        ));
-
-                        rows = driver.findElements(By.xpath("//table//tbody/tr"));
-                        int rowCount = rows.size();
-
-                        System.out.println("📄 Processing page with " + rowCount + " rows");
 
                         wait14.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
                                 By.xpath("//table//tbody/tr")
@@ -2893,61 +2885,23 @@ public class AutomationService {
 
                         Thread.sleep(1000);
 
-                        for (int i = 0; i < rowCount; i++) {
+                        // 🔥 Extract FULL TABLE HTML for this page
+                        String pageHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
 
-                            // 🔁 Re-fetch row every time (VERY IMPORTANT)
-                            WebElement row = driver.findElements(By.xpath("//table//tbody/tr")).get(i);
+                        String[] rowsSplit = pageHtml.split("<tr");
 
-                            List<WebElement> cols = row.findElements(By.tagName("td"));
-                            if (cols.size() < 30) continue;
-
-                            String username14 = cols.get(4).getText().trim();
-                            String firstName = cols.get(5).getText().trim();
-                            String lastName = cols.get(6).getText().trim();
-                            String expiry = cols.get(7).getText().trim();
-                            String parent = cols.get(8).getText().trim();
-                            String profile = cols.get(9).getText().trim();
-                            String phone = cols.get(22).getText().trim();
-                            String address = cols.get(23).getText().trim();
-                            String cnic = cols.get(27).getText().trim();
-
-                            LocalDateTime now = LocalDateTime.now();
-
-                            // 🧠 Parse expiry date (adjust format if needed)
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                            LocalDateTime expiryDateTime = null;
-
-                            try {
-                                expiryDateTime = LocalDateTime.parse(expiry, formatter);
-                            } catch (DateTimeParseException e) {
-                                System.out.println("⚠️ Invalid date format: " + expiry);
+                        for (String row : rowsSplit) {
+                            if (row.contains("<td")) {
+                                allRowsHtml.add(row);
                             }
-
-                            String status14 = "0"; // default expired
-
-                            if (expiryDateTime != null && (expiryDateTime.isEqual(now) || expiryDateTime.isAfter(now))) {
-                                status14 = "1"; // active
-                            }
-
-                            JSONObject obj = new JSONObject();
-
-                            obj.put("int_id", username14);
-                            obj.put("name", (firstName + " " + lastName).trim());
-                            obj.put("manager", parent);
-                            obj.put("cnic", cnic);
-                            obj.put("adrs", address);
-                            obj.put("status", status14);
-                            obj.put("mob", phone);
-                            obj.put("reg", "");
-                            obj.put("package", profile);
-                            obj.put("rech_dt", "");
-                            obj.put("exp_dt", expiry);
-
-                            jsonArray.put(obj);
                         }
 
-                        totalUsers += rows.size();
+                        totalUsers += rowsSplit.length;
 
+                        System.out.println("📄 Collected page. Total rows so far: " + allRowsHtml.size());
+
+                        // 🔁 NEXT PAGE LOGIC (UNCHANGED)
                         try {
                             WebElement nextBtn = driver.findElement(
                                     By.xpath("//a[@aria-label='Next']/parent::li")
@@ -2965,7 +2919,7 @@ public class AutomationService {
 
                                 System.out.println("➡️ Moving to next page");
 
-                                Thread.sleep(3000); // wait for reload
+                                Thread.sleep(3000);
                             }
 
                         } catch (Exception e) {
@@ -2974,7 +2928,90 @@ public class AutomationService {
                         }
                     }
 
-                    System.out.println("✅ Extracted " + totalUsers + " users");
+                    int totalRows = allRowsHtml.size();
+                    int chunkSize = 500;
+                    int numThreads = (int) Math.ceil((double) totalRows / chunkSize);
+
+                    System.out.println("📊 Total rows collected: " + totalRows + " | Threads: " + numThreads);
+
+                    List<JSONObject> resultList = Collections.synchronizedList(new ArrayList<>());
+
+                    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+                    List<Future<?>> futures = new ArrayList<>();
+
+                    for (int t = 0; t < numThreads; t++) {
+
+                        int start = t * chunkSize;
+                        int end = Math.min(start + chunkSize, totalRows);
+
+                        List<String> chunk = allRowsHtml.subList(start, end);
+
+                        futures.add(executor.submit(() -> {
+
+                            for (String row : chunk) {
+                                try {
+
+                                    String[] cols = row.split("<td[^>]*>");
+                                    if (cols.length < 28) continue;
+
+                                    String username14 = stripTags(cols[5]);
+                                    String firstName = stripTags(cols[6]);
+                                    String lastName = stripTags(cols[7]);
+                                    String expiry = stripTags(cols[8]);
+                                    String parent = stripTags(cols[9]);
+                                    String profile = stripTags(cols[10]);
+                                    String phone = stripTags(cols[23]);
+                                    String address = stripTags(cols[24]);
+                                    String cnic = stripTags(cols[28]);
+
+                                    // 🧠 STATUS LOGIC
+                                    String status14 = "0";
+                                    try {
+                                        LocalDateTime now = LocalDateTime.now();
+                                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                                        LocalDateTime expiryDateTime = LocalDateTime.parse(expiry, formatter);
+
+                                        if (!expiryDateTime.isBefore(now)) {
+                                            status14 = "1";
+                                        }
+                                    } catch (Exception ignore) {
+                                    }
+
+                                    JSONObject obj = new JSONObject();
+
+                                    obj.put("int_id", username14);
+                                    obj.put("name", (firstName + " " + lastName).trim());
+                                    obj.put("manager", parent);
+                                    obj.put("cnic", cnic);
+                                    obj.put("adrs", address);
+                                    obj.put("status", status14);
+                                    obj.put("mob", phone);
+                                    obj.put("reg", "");
+                                    obj.put("package", profile);
+                                    obj.put("rech_dt", "");
+                                    obj.put("exp_dt", expiry);
+
+                                    resultList.add(obj);
+
+                                } catch (Exception ex) {
+                                    System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                                }
+                            }
+                        }));
+                    }
+
+                    // wait all threads
+                    for (Future<?> f : futures) {
+                        f.get();
+                    }
+                    executor.shutdown();
+
+                    // build final JSON
+                    for (JSONObject obj : resultList) {
+                        jsonArray.put(obj);
+                    }
+
+                    System.out.println("✅ Extracted " + jsonArray.length() + " users (parallel)");
                     return jsonArray.toString();
 
                 case "billing_galaxy":

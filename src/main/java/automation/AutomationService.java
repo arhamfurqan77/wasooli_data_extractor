@@ -3616,9 +3616,14 @@ public class AutomationService {
                             System.out.println("⏳ Waiting for table data to load...");
 
                             wait16.until(driver1 -> {
-                                List<WebElement> rowsList = driver1.findElements(By.xpath("//tbody/tr"));
-                                return rowsList.size() > 0 &&
-                                        !rowsList.get(0).getText().toLowerCase().contains("no data");
+                                String html1 = driver1.findElement(By.xpath("//tbody")).getAttribute("innerHTML");
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                String html2 = driver1.findElement(By.xpath("//tbody")).getAttribute("innerHTML");
+                                return html1.equals(html2);
                             });
 
                             System.out.println("✅ Table data loaded");

@@ -896,6 +896,85 @@ public class LoginService {
 
                     System.out.println("✅ Galaxy login successful!");
                     return "{\"status\":\"success\",\"message\":\"Login successful\"}";
+
+                case "jazz_ftth":
+
+                    WebDriverWait wait16 = new WebDriverWait(driver, Duration.ofSeconds(25));
+
+                    System.out.println("🚀 Opening Jazz FTTH Portal...");
+
+                    int maxAttempts16 = 3;
+                    loginSuccess = false;
+
+                    for (int attempt = 1; attempt <= maxAttempts16; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        try {
+                            driver.get(url);
+
+                            // ⏳ Wait for username field
+                            wait16.until(ExpectedConditions.visibilityOfElementLocated(
+                                    By.id("user_login")
+                            )).sendKeys(username);
+
+                            driver.findElement(By.id("user_pass")).sendKeys(password);
+
+                            // 🧠 Get value directly from hidden input
+                            String sumValue = wait16.until(ExpectedConditions.presenceOfElementLocated(
+                                    By.id("sum")
+                            )).getAttribute("value");
+
+                            System.out.println("🧮 Captcha (from hidden): " + sumValue);
+
+                            // ✍️ Enter value
+                            WebElement captchaInput = driver.findElement(By.id("user"));
+                            captchaInput.clear();
+                            captchaInput.sendKeys(sumValue);
+
+                            // 🔥 IMPORTANT: trigger JS event manually
+                            ((JavascriptExecutor) driver).executeScript(
+                                    "arguments[0].dispatchEvent(new Event('keyup'));", captchaInput
+                            );
+
+                            // 🔘 Wait until button enabled then click
+                            loginBtn = wait16.until(ExpectedConditions.presenceOfElementLocated(
+                                    By.id("login_btn")
+                            ));
+
+                            wait16.until(driver1 ->
+                                    driver1.findElement(By.id("login_btn")).isEnabled()
+                            );
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", loginBtn);
+
+                            System.out.println("🔐 Login clicked");
+
+                            // ⏳ Wait for redirect
+                            Thread.sleep(5000);
+
+                            String currentUrl = driver.getCurrentUrl();
+                            System.out.println("🌐 Current URL: " + currentUrl);
+
+                            if (!currentUrl.contains("login")) {
+                                loginSuccess = true;
+                                break;
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Login attempt error: " + e.getMessage());
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    System.out.println("✅ Jazz FTTH login successful!");
+                    return "{\"status\":\"success\",\"message\":\"Login successful\"}";
             }
         } catch (Exception e) {
             e.printStackTrace();

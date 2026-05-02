@@ -15,6 +15,7 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -30,7 +31,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.List;
 import java.util.Set;
@@ -3509,6 +3509,208 @@ public class AutomationService {
 
                     return jsonArray15.toString();
 
+                case "jazz_ftth":
+
+                    WebDriverWait wait16 = new WebDriverWait(driver, Duration.ofSeconds(25));
+
+                    System.out.println("🚀 Opening Jazz FTTH Portal...");
+
+                    int maxAttempts16 = 3;
+                    loginSuccess = false;
+
+                    for (int attempt = 1; attempt <= maxAttempts16; attempt++) {
+
+                        System.out.println("🔁 Login Attempt: " + attempt);
+
+                        try {
+                            driver.get(url);
+
+                            // ⏳ Wait for username field
+                            wait16.until(ExpectedConditions.visibilityOfElementLocated(
+                                    By.id("user_login")
+                            )).sendKeys(username);
+
+                            driver.findElement(By.id("user_pass")).sendKeys(password);
+
+                            // 🧠 Get value directly from hidden input
+                            String sumValue = wait16.until(ExpectedConditions.presenceOfElementLocated(
+                                    By.id("sum")
+                            )).getAttribute("value");
+
+                            System.out.println("🧮 Captcha (from hidden): " + sumValue);
+
+                            // ✍️ Enter value
+                            WebElement captchaInput = driver.findElement(By.id("user"));
+                            captchaInput.clear();
+                            captchaInput.sendKeys(sumValue);
+
+                            // 🔥 IMPORTANT: trigger JS event manually
+                            ((JavascriptExecutor) driver).executeScript(
+                                    "arguments[0].dispatchEvent(new Event('keyup'));", captchaInput
+                            );
+
+                            // 🔘 Wait until button enabled then click
+                            loginBtn = wait16.until(ExpectedConditions.presenceOfElementLocated(
+                                    By.id("login_btn")
+                            ));
+
+                            wait16.until(driver1 ->
+                                    driver1.findElement(By.id("login_btn")).isEnabled()
+                            );
+
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", loginBtn);
+
+                            System.out.println("🔐 Login clicked");
+
+                            // ⏳ Wait for redirect
+                            Thread.sleep(5000);
+
+                            String currentUrl = driver.getCurrentUrl();
+                            System.out.println("🌐 Current URL: " + currentUrl);
+
+                            if (!currentUrl.contains("login")) {
+                                loginSuccess = true;
+                                break;
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Login attempt error: " + e.getMessage());
+                        }
+
+                        System.out.println("❌ Login failed, retrying...");
+                    }
+
+                    if (!loginSuccess) {
+                        driver.quit();
+                        return "{\"status\":\"error\",\"message\":\"Login failed after retries\"}";
+                    }
+
+                    System.out.println("✅ Jazz FTTH login successful!");
+
+                    try {
+                        // 📄 Navigate to consumers page
+                        System.out.println("📄 Navigating to consumers page...");
+                        driver.get(url + "users/users/allconsumers");
+
+                        wait16.until(d -> d.getCurrentUrl().contains("allconsumers"));
+
+                        wait16.until(webDriver ->
+                                ((JavascriptExecutor) webDriver)
+                                        .executeScript("return document.readyState")
+                                        .equals("complete")
+                        );
+
+                        System.out.println("✅ Consumers page loaded");
+
+                        // 📊 Select "All" entries
+                        try {
+                            WebElement dropdown = wait16.until(ExpectedConditions.elementToBeClickable(
+                                    By.name("DataTables_Table_0_length")
+                            ));
+
+                            Select select = new Select(dropdown);
+                            select.selectByValue("-1");
+
+                            System.out.println("📊 Set entries to ALL");
+
+                            System.out.println("⏳ Waiting for table data to load...");
+
+                            wait16.until(driver1 -> {
+                                List<WebElement> rowsList = driver1.findElements(By.xpath("//tbody/tr"));
+                                return rowsList.size() > 0 &&
+                                        !rowsList.get(0).getText().toLowerCase().contains("no data");
+                            });
+
+                            System.out.println("✅ Table data loaded");
+                        } catch (Exception e) {
+                            System.out.println("⚠️ Could not set entries to ALL: " + e.getMessage());
+                        }
+
+                        // ⏳ Wait for rows
+                        wait16.until(ExpectedConditions.presenceOfElementLocated(
+                                By.xpath("//tbody/tr")
+                        ));
+
+                        // 📥 Extract full HTML
+                        String tableHtml = (String) ((JavascriptExecutor) driver)
+                                .executeScript("return document.querySelector('tbody').innerHTML;");
+
+                        System.out.println("📥 Table HTML extracted");
+
+                        // 🔪 Split rows
+                        List<WebElement> rows = driver.findElements(By.xpath("//tbody/tr"));
+
+                        jsonArray = new JSONArray();
+
+                        for (WebElement row : rows) {
+
+                            try {
+                                List<WebElement> cols = row.findElements(By.tagName("td"));
+
+                                if (cols.size() < 8) continue;
+
+                                String username16 = cols.get(1).getText().trim();
+                                String name = cols.get(2).getText().trim();
+                                String address = cols.get(3).getText().trim();
+                                String cnic = cols.get(4).getText().trim();
+                                String mobile = cols.get(5).getText().trim();
+                                String pkg = cols.get(6).getText().trim();
+                                String expiry = cols.get(7).getText().trim();
+                                String trader = cols.get(8).getText().trim();
+
+                                if (username16.isEmpty()) continue;
+
+                                int status = 0; // default
+
+                                try {
+                                    WebElement statusElement = cols.get(1).findElement(
+                                            By.xpath(".//span[contains(@class,'left')]")
+                                    );
+
+                                    String title = statusElement.getAttribute("title");
+
+                                    if (title != null && title.equalsIgnoreCase("active")) {
+                                        status = 1;
+                                    } else {
+                                        status = 0;
+                                    }
+
+                                } catch (Exception e) {
+                                    System.out.println("⚠️ Status not found, defaulting to 0");
+                                }
+
+                                JSONObject obj = new JSONObject();
+
+                                obj.put("int_id", username16);
+                                obj.put("name", name);
+                                obj.put("manager", trader);
+                                obj.put("cnic", cnic);
+                                obj.put("adrs", address);
+                                obj.put("status", String.valueOf(status));
+                                obj.put("mob", mobile);
+                                obj.put("reg", "");
+                                obj.put("package", pkg);
+                                obj.put("rech_dt", "");
+                                obj.put("exp_dt", expiry);
+
+                                jsonArray.put(obj);
+
+                            } catch (Exception ex) {
+                                System.out.println("⚠️ Row parse error: " + ex.getMessage());
+                            }
+                        }
+
+                        System.out.println("✅ Extracted users: " + jsonArray.length());
+                        return jsonArray.toString();
+
+                    } catch (Exception e) {
+
+                        System.out.println("❌ ERROR IN JAZZ FTTH FLOW");
+                        e.printStackTrace();
+
+                        return "{\"status\":\"error\",\"step\":\"jazz_ftth_flow\",\"message\":\""
+                                + e.getMessage().replace("\"", "'") + "\"}";
+                    }
 
                 case "connect1":
 

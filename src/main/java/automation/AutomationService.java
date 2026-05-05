@@ -622,16 +622,26 @@ public class AutomationService {
 
                     try {
                         WebElement rows500 = wait3.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
+                                By.xpath("//a[normalize-space()='500']")
                         ));
 
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}))",
+                                rows500
+                        );
 
-                        System.out.println("✅ Selected 500 rows");
+                        System.out.println("✅ Clicked 500 rows");
 
-                        Thread.sleep(3000); // wait for table reload
+                        // 🔥 WAIT FOR TABLE TO REFRESH
+                        wait3.until(driver1 -> {
+                            List<WebElement> rowsNow = driver1.findElements(By.xpath("//table//tbody/tr"));
+                            return rowsNow.size() > 50; // adjust threshold if needed
+                        });
+
+                        System.out.println("✅ Table refreshed after selecting 500");
+
                     } catch (Exception e) {
-                        System.out.println("⚠️ Could not select 500 rows");
+                        System.out.println("⚠️ Could not select 500 rows: " + e.getMessage());
                     }
 
                     JSONArray jsonArray = new JSONArray();
@@ -1345,16 +1355,26 @@ public class AutomationService {
 
                     try {
                         WebElement rows500 = wait6.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
+                                By.xpath("//a[normalize-space()='500']")
                         ));
 
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}))",
+                                rows500
+                        );
 
-                        System.out.println("✅ Selected 500 rows");
+                        System.out.println("✅ Clicked 500 rows");
 
-                        Thread.sleep(3000); // wait for table reload
+                        // 🔥 WAIT FOR TABLE TO REFRESH
+                        wait6.until(driver1 -> {
+                            List<WebElement> rowsNow = driver1.findElements(By.xpath("//table//tbody/tr"));
+                            return rowsNow.size() > 50; // adjust threshold if needed
+                        });
+
+                        System.out.println("✅ Table refreshed after selecting 500");
+
                     } catch (Exception e) {
-                        System.out.println("⚠️ Could not select 500 rows");
+                        System.out.println("⚠️ Could not select 500 rows: " + e.getMessage());
                     }
 
                     jsonArray = new JSONArray();
@@ -1598,19 +1618,28 @@ public class AutomationService {
                     clickCheckboxIfNeeded(driver, wait7, "address");      // Address
                     clickCheckboxIfNeeded(driver, wait7, "national_id");  // National ID
 
-
                     try {
                         WebElement rows500 = wait7.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
+                                By.xpath("//a[normalize-space()='500']")
                         ));
 
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}))",
+                                rows500
+                        );
 
-                        System.out.println("✅ Selected 500 rows");
+                        System.out.println("✅ Clicked 500 rows");
 
-                        Thread.sleep(3000); // wait for table reload
+                        // 🔥 WAIT FOR TABLE TO REFRESH
+                        wait7.until(driver1 -> {
+                            List<WebElement> rowsNow = driver1.findElements(By.xpath("//table//tbody/tr"));
+                            return rowsNow.size() > 50; // adjust threshold if needed
+                        });
+
+                        System.out.println("✅ Table refreshed after selecting 500");
+
                     } catch (Exception e) {
-                        System.out.println("⚠️ Could not select 500 rows");
+                        System.out.println("⚠️ Could not select 500 rows: " + e.getMessage());
                     }
 
                     jsonArray = new JSONArray();
@@ -3114,16 +3143,26 @@ public class AutomationService {
 
                     try {
                         WebElement rows500 = wait14.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//rows-count-selector//a[normalize-space()='500']")
+                                By.xpath("//a[normalize-space()='500']")
                         ));
 
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows500);
+                        ((JavascriptExecutor) driver).executeScript(
+                                "arguments[0].dispatchEvent(new MouseEvent('click', {bubbles: true}))",
+                                rows500
+                        );
 
-                        System.out.println("✅ Selected 500 rows");
+                        System.out.println("✅ Clicked 500 rows");
 
-                        Thread.sleep(3000); // wait for table reload
+                        // 🔥 WAIT FOR TABLE TO REFRESH
+                        wait14.until(driver1 -> {
+                            List<WebElement> rowsNow = driver1.findElements(By.xpath("//table//tbody/tr"));
+                            return rowsNow.size() > 50; // adjust threshold if needed
+                        });
+
+                        System.out.println("✅ Table refreshed after selecting 500");
+
                     } catch (Exception e) {
-                        System.out.println("⚠️ Could not select 500 rows");
+                        System.out.println("⚠️ Could not select 500 rows: " + e.getMessage());
                     }
 
                     jsonArray = new JSONArray();

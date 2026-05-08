@@ -269,9 +269,9 @@ public class AutomationService {
                             apiUrl
                     );
 
-                    System.out.println("📦 Raw JSON received:\n" + rawJson);
-
-                    System.out.println("📦 Raw JSON received");
+//                    System.out.println("📦 Raw JSON received:\n" + rawJson);
+//
+//                    System.out.println("📦 Raw JSON received");
 
                     // 🧠 PARSE JSON
                     JSONObject response = new JSONObject(rawJson);

@@ -14,6 +14,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -1077,7 +1078,7 @@ public class AutomationService {
                         driver.findElement(By.xpath("//button[@type='submit']")).click();
 
                         // ⏳ Wait after login
-                        Thread.sleep(7000);
+                        Thread.sleep(2000 + new Random().nextInt(4000));
 
                         // 🌐 Get current URL
                         currentUrl5 = driver.getCurrentUrl();
@@ -1129,8 +1130,41 @@ public class AutomationService {
                     } catch (TimeoutException e) {
                         System.out.println("⚠️ No popup appeared");
                     }
-                    System.out.println("📄 Navigating to customers page...");
-                    driver.get(url + "/customer/customers");
+                    System.out.println("📂 Opening Customers menu...");
+
+                    // ⏳ small human delay
+                    Thread.sleep(3000);
+
+                    // 🔹 Click Customers menu in sidebar
+                    WebElement customersMenu = wait5.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//span[contains(text(),'Customers')]")
+                            )
+                    );
+
+                    Actions actions = new Actions(driver);
+
+                    actions.moveToElement(customersMenu).pause(Duration.ofSeconds(1)).click().perform();
+
+                    try {
+                        customersMenu.click();
+                    } catch (Exception e) {
+                        ((JavascriptExecutor) driver)
+                                .executeScript("arguments[0].click();", customersMenu);
+                    }
+
+                    System.out.println("✅ Customers menu opened");
+
+                    // ⏳ wait submenu animation
+                    Thread.sleep(1500);
+
+                    if (driver.getPageSource().contains("Powered by Nexusguard")) {
+
+                        System.out.println("⚠️ Nexusguard challenge detected");
+
+                        Thread.sleep(10000); // wait challenge
+
+                    }
 
                     wait5.until(d -> d.getCurrentUrl().contains("customer/customers"));
                     System.out.println("✅ Customers page loaded");
@@ -1154,7 +1188,7 @@ public class AutomationService {
 
                     System.out.println("🔍 Search clicked");
 
-                    Thread.sleep(4000);
+                    Thread.sleep(2000 + new Random().nextInt(4000));
 
                     wait5.until(ExpectedConditions.elementToBeClickable(By.id("btnExport")));
 

@@ -47,6 +47,9 @@ public class DriverFactory {
             options.addPreference("signon.rememberSignons", false);
             options.addPreference("network.proxy.type", 0);
             options.addPreference("dom.webnotifications.enabled", false);
+            options.addPreference("dom.webdriver.enabled", false);
+            options.addPreference("useAutomationExtension", false);
+
 
             return new FirefoxDriver(options);
 

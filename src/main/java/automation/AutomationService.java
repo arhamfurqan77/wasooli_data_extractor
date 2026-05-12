@@ -3812,6 +3812,387 @@ public class AutomationService {
                 + "\"}";
           }
 
+        case "fiber_beam":
+          WebDriverWait wait17 = new WebDriverWait(driver, Duration.ofSeconds(25));
+
+          String downloadDir17 = System.getProperty("user.home") + "\\Downloads";
+
+          // 🧹 DELETE OLD FILES
+          try {
+
+            File folder17 = new File(downloadDir17);
+            File[] files17 = folder17.listFiles();
+
+            if (files17 != null) {
+
+              for (File f : files17) {
+
+                if (f.getName().toLowerCase().contains("FiberBeam BroadBand Billing System")
+                    && f.getName().endsWith(".xlsx")) {
+
+                  f.delete();
+
+                  System.out.println("🧹 Deleted old file: " + f.getName());
+                }
+              }
+            }
+
+          } catch (Exception e) {
+
+            System.out.println("⚠️ Failed deleting old files: " + e.getMessage());
+          }
+
+          System.out.println("🚀 Opening Fiber Beam Portal...");
+
+          try {
+
+            driver.get(url);
+
+            // =========================
+            // 🔐 LOGIN
+            // =========================
+
+            wait17
+                .until(ExpectedConditions.visibilityOfElementLocated(By.id("signin-username")))
+                .sendKeys(username);
+
+            driver.findElement(By.id("signin-password")).sendKeys(password);
+
+            System.out.println("✍️ Credentials entered");
+
+            WebElement loginBtn17 =
+                wait17.until(ExpectedConditions.elementToBeClickable(By.id("loginBtn")));
+
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", loginBtn17);
+
+            System.out.println("🔐 Login button clicked");
+
+            // ⏳ WAIT AFTER LOGIN
+            Thread.sleep(5000);
+
+            // =========================
+            // ✅ VERIFY LOGIN
+            // =========================
+
+            loginSuccess = false;
+
+            try {
+
+              wait17.until(ExpectedConditions.not(ExpectedConditions.urlContains("login")));
+
+              loginSuccess = true;
+
+            } catch (Exception e) {
+
+              loginSuccess = false;
+            }
+
+            if (!loginSuccess) {
+
+              driver.quit();
+
+              System.out.println("❌ Wrong Login Credentials");
+
+              return "{\"status\":\"error\",\"message\":\"Wrong login credentials\"}";
+            }
+
+            System.out.println("✅ Fiber Beam login successful!");
+
+          } catch (Exception e) {
+
+            driver.quit();
+
+            System.out.println("❌ Login flow failed");
+
+            e.printStackTrace();
+
+            return "{\"status\":\"error\",\"step\":\"login\",\"message\":\""
+                + e.getMessage().replace("\"", "'")
+                + "\"}";
+          }
+
+          // =========================
+          // 📄 OPEN SUBSCRIBER PAGE
+          // =========================
+
+          try {
+
+            System.out.println("📄 Navigating to subscriber page...");
+
+            driver.get(url + "subscriber");
+
+            wait17.until(ExpectedConditions.urlContains("subscriber"));
+
+            wait17.until(
+                webDriver ->
+                    ((JavascriptExecutor) webDriver)
+                        .executeScript("return document.readyState")
+                        .equals("complete"));
+
+            System.out.println("✅ Subscriber page loaded");
+
+          } catch (Exception e) {
+
+            driver.quit();
+
+            System.out.println("❌ Failed opening subscriber page");
+
+            return "{\"status\":\"error\",\"step\":\"subscriber_page\",\"message\":\""
+                + e.getMessage().replace("\"", "'")
+                + "\"}";
+          }
+
+          // =========================
+          // 📊 OPEN PAGE LENGTH DROPDOWN
+          // =========================
+
+          try {
+
+            System.out.println("📊 Opening page length dropdown...");
+
+            WebElement pageLengthBtn =
+                wait17.until(
+                    ExpectedConditions.elementToBeClickable(
+                        By.xpath(
+                            "//button[contains(@class,'buttons-collection') and .//span[contains(text(),'Page Length')]]")));
+
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", pageLengthBtn);
+
+            System.out.println("✅ Page length dropdown opened");
+
+          } catch (Exception e) {
+
+            driver.quit();
+
+            System.out.println("❌ Failed opening page length dropdown");
+
+            return "{\"status\":\"error\",\"step\":\"page_length_dropdown\",\"message\":\""
+                + e.getMessage().replace("\"", "'")
+                + "\"}";
+          }
+
+          // =========================
+          // 📊 SELECT 10000 ROWS
+          // =========================
+
+          try {
+
+            System.out.println("📊 Selecting 10000 rows...");
+
+            WebElement rows10000 =
+                wait17.until(
+                    ExpectedConditions.elementToBeClickable(
+                        By.xpath(
+                            "//a[contains(@class,'dropdown-item')]//span[contains(text(),'10000 rows')]")));
+
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", rows10000);
+
+            System.out.println("✅ 10000 rows selected");
+
+            // ⏳ WAIT TABLE RELOAD
+            Thread.sleep(5000);
+
+          } catch (Exception e) {
+
+            System.out.println("⚠️ Could not select 10000 rows");
+
+            e.printStackTrace();
+          }
+
+          // =========================
+          // 📥 CLICK EXCEL BUTTON
+          // =========================
+
+          try {
+
+            System.out.println("📥 Clicking Excel button...");
+
+            excelBtn =
+                wait17.until(
+                    ExpectedConditions.elementToBeClickable(
+                        By.xpath(
+                            "//button[contains(@class,'buttons-excel')]//span[contains(text(),'Excel')]")));
+
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", excelBtn);
+
+            System.out.println("✅ Excel button clicked");
+
+          } catch (Exception e) {
+
+            driver.quit();
+
+            System.out.println("❌ Failed clicking Excel button");
+
+            return "{\"status\":\"error\",\"step\":\"excel_download\",\"message\":\""
+                + e.getMessage().replace("\"", "'")
+                + "\"}";
+          }
+
+          // =========================
+          // ⏳ WAIT FOR DOWNLOAD
+          // =========================
+
+          File latestFile17 = null;
+
+          int waitTime17 = 0;
+
+          while (waitTime17 < 40) {
+
+            File[] files = new File(downloadDir17).listFiles();
+
+            if (files != null) {
+
+              for (File f : files) {
+
+                System.out.println("📂 Found file: " + f.getName());
+
+                if (f.getName().contains("FiberBeam BroadBand Billing System")
+                    && f.getName().endsWith(".xlsx")) {
+
+                  // ✅ Wait until download complete
+                  long size1 = f.length();
+
+                  Thread.sleep(1000);
+
+                  long size2 = f.length();
+
+                  if (size1 == size2 && size1 > 0) {
+
+                    latestFile17 = f;
+
+                    System.out.println("✅ Download completed: " + f.getName());
+
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (latestFile17 != null) break;
+
+            Thread.sleep(1000);
+
+            waitTime17++;
+          }
+
+          if (latestFile17 == null) {
+
+            driver.quit();
+
+            System.out.println("❌ Excel file not found");
+
+            return "{\"status\":\"error\",\"message\":\"Excel file not downloaded\"}";
+          }
+
+          // =========================
+          // 📊 READ EXCEL
+          // =========================
+
+          JSONArray jsonArray17 = new JSONArray();
+
+          try {
+
+            System.out.println("📊 Reading Excel file...");
+
+            FileInputStream fis17 = new FileInputStream(latestFile17);
+
+            XSSFWorkbook workbook17 = new XSSFWorkbook(fis17);
+
+            XSSFSheet sheet17 = workbook17.getSheetAt(0);
+
+            for (int i = 2; i <= sheet17.getLastRowNum(); i++) {
+
+              if (sheet17.getRow(i) == null) continue;
+
+              DataFormatter formatter = new DataFormatter();
+
+              try {
+
+                JSONObject obj = new JSONObject();
+
+                // ⚠️ CHANGE COLUMN INDEXES ACCORDING TO YOUR FILE
+                obj.put("int_id", getCellValue(sheet17, i, 1));
+
+                obj.put("name", getCellValue(sheet17, i, 2));
+
+                obj.put("manager", getCellValue(sheet17, i, 3));
+
+                String cnic = "";
+
+                try {
+                  Cell cnicCell = sheet17.getRow(i).getCell(7);
+                  if (cnicCell != null) {
+                    cnic = formatter.formatCellValue(cnicCell).replace(".0", "").trim();
+                  }
+                } catch (Exception ignore) {
+                }
+                obj.put("cnic", cnic);
+
+                obj.put("adrs", getCellValue(sheet17, i, 4));
+
+                String expiryText = String.valueOf(getCellValue(sheet17, i, 9)).trim();
+                String status = expiryText.toLowerCase().contains("ago") ? "0" : "1";
+                obj.put("status", status);
+
+                obj.put("mob", getCellValue(sheet17, i, 6));
+
+                obj.put("reg", "");
+
+                obj.put("package", getCellValue(sheet17, i, 8));
+
+                obj.put("rech_dt", "");
+
+                obj.put("exp_dt", getCellValue(sheet17, i, 9));
+
+                jsonArray17.put(obj);
+
+              } catch (Exception ex) {
+
+                System.out.println("⚠️ Row parse error: " + ex.getMessage());
+              }
+            }
+
+            workbook17.close();
+
+            fis17.close();
+
+            System.out.println("✅ Extracted users: " + jsonArray17.length());
+
+          } catch (Exception e) {
+
+            driver.quit();
+
+            System.out.println("❌ Failed reading Excel");
+
+            e.printStackTrace();
+
+            return "{\"status\":\"error\",\"step\":\"excel_read\",\"message\":\""
+                + e.getMessage().replace("\"", "'")
+                + "\"}";
+          }
+
+          // =========================
+          // 🗑️ DELETE FILE
+          // =========================
+
+          try {
+
+            if (latestFile17.exists()) {
+
+              latestFile17.delete();
+
+              System.out.println("🗑️ Fiber Beam file deleted");
+            }
+
+          } catch (Exception e) {
+
+            System.out.println("⚠️ Failed deleting file");
+          }
+
+          System.out.println("🎯 Fiber Beam completed");
+
+          return jsonArray17.toString();
+
         case "connect1":
           try {
             WebDriverWait wait66 = new WebDriverWait(driver, Duration.ofSeconds(20));

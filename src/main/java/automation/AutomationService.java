@@ -475,6 +475,8 @@ public class AutomationService {
 
           JSONArray jsonArray2 = new JSONArray();
 
+          DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+
           for (int i = 2; i <= sheet2.getLastRowNum(); i++) {
 
             if (sheet2.getRow(i) == null) continue;
@@ -489,16 +491,33 @@ public class AutomationService {
                     .replace("●", "") // remove bullet
                     .trim(); // remove spaces
 
+            // Expiry date logic
+            String expDateStr = getCellValue(sheet2, i, 6);
+            String status = "0"; // default expired
+
+            try {
+              if (expDateStr != null && !expDateStr.isBlank()) {
+                LocalDateTime expDate = LocalDateTime.parse(expDateStr, formatter2);
+
+                LocalDateTime now = LocalDateTime.now();
+
+                // Active if expiry date >= current date
+                status = !expDate.isBefore(now) ? "1" : "0";
+              }
+            } catch (Exception e) {
+              System.out.println("Invalid date format at row " + i + ": " + expDateStr);
+            }
+
             obj.put("name", cleanName);
             obj.put("manager", getCellValue(sheet2, i, 4));
             obj.put("cnic", "");
             obj.put("adrs", getCellValue(sheet2, i, 2));
-            obj.put("status", "");
+            obj.put("status", status);
             obj.put("mob", "");
             obj.put("reg", "");
             obj.put("package", getCellValue(sheet2, i, 3));
             obj.put("rech_dt", "");
-            obj.put("exp_dt", getCellValue(sheet2, i, 6));
+            obj.put("exp_dt", expDateStr);
 
             jsonArray2.put(obj);
           }
@@ -2057,18 +2076,31 @@ public class AutomationService {
 
             String firstName = String.valueOf(getCellValue(sheet8, i, 2)).trim();
             String lastName = String.valueOf(getCellValue(sheet8, i, 3)).trim();
+            String plot = String.valueOf(getCellValue(sheet8, i, 16));
+            String street = String.valueOf(getCellValue(sheet8, i, 25));
+            String city = String.valueOf(getCellValue(sheet8, i, 4));
 
             obj.put("int_id", getCellValue(sheet8, i, 1));
             obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
-            obj.put("manager", "");
+            obj.put("manager", getCellValue(sheet8, i, 14));
             obj.put("cnic", getCellValue(sheet8, i, 19));
-            obj.put("adrs", getCellValue(sheet8, i, 16));
+            String address = plot;
+
+            if (street != null && !street.isBlank()) {
+              address += " st.# " + street;
+            }
+
+            if (city != null && !city.isBlank()) {
+              address += " " + city;
+            }
+
+            obj.put("adrs", address.trim());
             obj.put("status", getCellValue(sheet8, i, 10));
-            obj.put("mob", getCellValue(sheet8, i, 4));
+            obj.put("mob", getCellValue(sheet8, i, 5));
             obj.put("reg", "");
             obj.put("package", getCellValue(sheet8, i, 12));
             obj.put("rech_dt", "");
-            obj.put("exp_dt", getCellValue(sheet8, i, 10));
+            obj.put("exp_dt", getCellValue(sheet8, i, 7));
 
             jsonArray8.put(obj);
           }
@@ -2463,7 +2495,7 @@ public class AutomationService {
             String firstName = String.valueOf(getCellValue(sheet10, i, 2)).trim();
             String lastName = String.valueOf(getCellValue(sheet10, i, 3)).trim();
             obj.put("name", (firstName + " " + lastName).replaceAll("null", "").trim());
-            obj.put("manager", "");
+            obj.put("manager", getCellValue(sheet10, i, 14));
             obj.put("cnic", getCellValue(sheet10, i, 19));
             obj.put("adrs", getCellValue(sheet10, i, 16));
             obj.put("status", getCellValue(sheet10, i, 10));
